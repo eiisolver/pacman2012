@@ -57,11 +57,12 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			board.update(game);
 			if (log) {
 				Log.println("Time: " + game.getCurrentLevelTime());
-				jgraph.print(game);
+				jgraph.print(game, board);
 			}
-			Search.searchMove();
+			Search.searchMove(timeDue);
 			Log.println( "Searched " + Search.nodesSearched + " nodes, value: " + p.bestValue);
-			System.out.println("Move: " + game.getCurrentLevelTime() + ", Ghosts searched " + Search.nodesSearched + " nodes, value: " + p.bestValue);
+			System.out.println("Move: " + game.getCurrentLevelTime() 
+					+ ", Ghosts searched " + Search.nodesSearched + " nodes, budget: " + p.budget + ", value: " + p.bestValue);
 			int[] bestMove = Search.plyInfo[0].bestGhostMove;
 			for (int i = 0; i < bestMove.length; ++i) {
 				MyGhost ghost = board.ghosts[i];

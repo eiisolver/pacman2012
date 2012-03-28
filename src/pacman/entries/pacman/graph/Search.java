@@ -1,4 +1,4 @@
-package pacman.entries.ghosts.graph;
+package pacman.entries.pacman.graph;
 
 import static pacman.game.Constants.COMMON_LAIR_TIME;
 import static pacman.game.Constants.EAT_DISTANCE;

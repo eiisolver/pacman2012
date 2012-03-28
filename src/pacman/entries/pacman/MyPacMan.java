@@ -1,7 +1,7 @@
 package pacman.entries.pacman;
 
 import pacman.controllers.Controller;
-import pacman.entries.ghosts.graph.*;
+import pacman.entries.pacman.graph.*;
 import pacman.game.Constants.MOVE;
 import pacman.game.Game;
 
@@ -33,7 +33,7 @@ public class MyPacMan extends Controller<MOVE>
 		lastMazeIndex = game.getMazeIndex();
 		long startTime = System.currentTimeMillis();
 		board.update(game);
-		Search.searchMove();
+		Search.searchMove(timeDue);
 		PlyInfo p = Search.plyInfo[0];
 		System.out.println("Searched " + Search.nodesSearched + " nodes, value: " + p.bestValue);
 		int bestMove = p.bestPacmanMove;

@@ -1,4 +1,4 @@
-package pacman.entries.ghosts.graph;
+package pacman.entries.pacman.graph;
 
 import pacman.game.Constants.GHOST;
 import pacman.game.Constants.MOVE;
