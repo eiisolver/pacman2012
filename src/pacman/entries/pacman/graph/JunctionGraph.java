@@ -21,9 +21,55 @@ public class JunctionGraph {
 	public Node[] nodes;
 	public List<BigEdge> edges = new ArrayList<BigEdge>();
 	/**
-	 * Contains the "pacman" distance between any two junction nodes.
+	 * Contains the ghost distance between any two junction nodes.
+	 * ghostDist[move1][index1][move2][index2] gives the distance 
+	 * between junction nodes index1 and index 2 given that
+	 * move1 was the move leading to index1, move2 will be the
+	 * move made from index2
 	 */
-	public int[][] pacmanDist;
+	public int[][][][] ghostDist;
+	private static final MOVE[] intToMove = new MOVE[] {
+		MOVE.UP, MOVE.RIGHT, MOVE.DOWN, MOVE.LEFT
+	};
+	
+	/**
+	 * Returns the ghost distance from junction index1 to junction index2
+	 * @param index1 index of source node(normal index, not junction index) of from node
+	 * @param lastMoveMade last move made that led to index1
+	 * @param index2 index of destination
+	 * @param moveFromIndex2 move to be made from index2
+	 * @return
+	 */
+	public int getGhostDistBetweenJunctions(int index1, MOVE lastMoveMade, int index2, MOVE moveFromIndex2) {
+		int j1 = nodes[index1].junctionIndex;
+		int j2 = nodes[index2].junctionIndex;
+		return ghostDist[lastMoveMade.ordinal()][j1][moveFromIndex2.ordinal()][j2];
+	}
+	
+	/**
+	 * Returns the ghost distance from a node (junction or not) to a junction
+	 * @param index1 index of source node(normal index, not junction index) of from node
+	 * @param lastMoveMade last move made that led to index1
+	 * @param index2 index of destination
+	 * @param moveFromIndex2 move to be made from index2
+	 * @return
+	 */
+	public int getGhostDistToJunction(int index1, MOVE lastMoveMade, int index2, MOVE moveFromIndex2) {
+		int junc1;
+		MOVE lastMove;
+		int distToJunc1;
+		Node n1 = nodes[index1];
+		if (n1.isJunction()) {
+			junc1 = index1;
+			lastMove = lastMoveMade;
+			distToJunc1 = 0;
+		} else {
+			junc1 = n1.getNextJunction(lastMoveMade);
+			lastMove = n1.getLastMoveToNextJunction(lastMoveMade);
+			distToJunc1 = n1.getDistToNextJunction(lastMoveMade);
+		}
+		return distToJunc1 + getGhostDistBetweenJunctions(junc1, lastMove, index2, moveFromIndex2);
+	}
 	
 	/**
 	 * Constructs the junction graph from the given maze.
@@ -41,6 +87,8 @@ public class JunctionGraph {
 			n.neighbourMoves = game.getPossibleMoves(i);
 			n.neighbours = new int[n.neighbourMoves.length];
 			n.nrNeighbours = n.neighbours.length;
+			n.x = game.getNodeXCood(i);
+			n.y = game.getNodeYCood(i);
 			for (int m = 0; m < n.neighbourMoves.length; ++m) {
 				n.neighbours[m] = game.getNeighbour(i, n.neighbourMoves[m]);
 			}
@@ -58,7 +106,7 @@ public class JunctionGraph {
 				addEdge(n, move);
 			}
 		}
-		calcPacmanDist();
+		calcGhostDist();
 		long now = System.currentTimeMillis();
 		System.out.println("Junction graph: #junctions = " + junctionNodes.length + ", #edges = " + edges.size());
 		System.out.println("nr millis: " + (now - start));
@@ -80,16 +128,19 @@ public class JunctionGraph {
 		BigEdge edge = new BigEdge();
 		edges.add(edge);
 		List<Node> nodeList = new ArrayList<Node>();
+		edge.firstMoveToOtherEnd[0] = lastMoveMade;
 		while (!game.isJunction(nextIndex)) {
 			nodes[nextIndex].edge = edge;
 			nodeList.add(nodes[nextIndex]);
 			nodes[nextIndex].lastMoveIfForward = lastMoveMade;
+			nodes[nextIndex].moveToPrevNode = lastMoveMade.opposite();
 			MOVE[] possibleMoves = game.getPossibleMoves(nextIndex, lastMoveMade);
 			lastIndex = nextIndex;
 			lastMoveMade = possibleMoves[0];
+			nodes[nextIndex].moveToNextNode = lastMoveMade;
 			nextIndex = game.getNeighbour(nextIndex, lastMoveMade);
-			
 		}
+		edge.firstMoveToOtherEnd[1] = lastMoveMade.opposite();
 		Node n2 = nodes[nextIndex];
 		edge.endpoints[0] = n;
 		edge.endpoints[1] = n2;
@@ -108,7 +159,7 @@ public class JunctionGraph {
 		}
 	}
 	
-	private void calcPacmanDist() {
+	/*private void calcPacmanDist() {
 		int N = junctionNodes.length;
 		pacmanDist = new int[N][N];
 		for (int i = 0; i < N; ++i) {
@@ -122,7 +173,7 @@ public class JunctionGraph {
 				BigEdge edge = junctionNodes[i].edges[e];
 				if (edge.endpoints[0] != edge.endpoints[1]) {
 					int j = edge.endpoints[0].junctionIndex;
-					if (i != j) {
+					if (i == j) {
 						j = edge.endpoints[1].junctionIndex;
 					}
 					if (edge.length < pacmanDist[i][j]) {
@@ -138,6 +189,50 @@ public class JunctionGraph {
 					int sum = pacmanDist[i][j] + pacmanDist[j][k];
 					if (sum < pacmanDist[i][k]) {
 						pacmanDist[i][k] = sum;
+					}
+				}
+			}
+		}
+	}*/
+	
+	private void calcGhostDist() {
+		int N = junctionNodes.length;
+		ghostDist = new int[5][N][5][N];
+		for (int m = 0; m < 4; ++m) {
+			for (int i = 0; i < N; ++i) {
+				for (int m2 = 0; m2 < 4; ++m2) {
+					Arrays.fill(ghostDist[m][i][m2], 100000);
+				}
+			}
+		}
+		// set 0-distance between junction and itself 
+		for (int i = 0; i < N; ++i) {
+			for (MOVE m1 : MOVE.values()) {
+				for (MOVE m2 : MOVE.values()) {
+					if (m1.opposite() != m2) {
+						ghostDist[m1.ordinal()][i][m2.ordinal()][i] = 0;
+					}
+				}
+			}
+		}
+		// calc distances between neighbour junctions
+		for (BigEdge edge : edges) {
+			Node start = edge.endpoints[0];
+			Node end = edge.endpoints[1];
+			int secondNodeIndex = edge.length == 1 ? end.index : edge.internalNodes[1].index;
+			int secondLastNodeIndex = edge.length == 1 ? start.index : edge.internalNodes[edge.internalNodes.length-1].index;
+			for (int i = 0; i < start.nrNeighbours; ++i) {
+				if (start.neighbours[i] != secondNodeIndex) {
+					MOVE moveToStart = start.neighbourMoves[i].opposite();
+					for (int j = 0; j < end.nrNeighbours; ++j) {
+						if (end.neighbours[j] != secondLastNodeIndex) {
+							int[] arr = ghostDist[moveToStart.ordinal()][start.junctionIndex][end.neighbourMoves[j].ordinal()];
+							if (arr[end.junctionIndex] > edge.length) {
+								arr[end.junctionIndex] = edge.length;
+								ghostDist[end.neighbourMoves[j].opposite().ordinal()][end.junctionIndex]
+										[moveToStart.opposite().ordinal()][start.junctionIndex] = edge.length;
+							}
+						}
 					}
 				}
 			}
@@ -175,10 +270,10 @@ public class JunctionGraph {
 				repr[x][y] = ""+n.edgeIndex;
 			}*/
 		}
-		for (int i = 0; i <= maxX; ++i) {
-			String row = String.format("%3d ", i);
+		for (int j = 0; j <= maxY; ++j) {
+			String row = String.format("%3d ", j);
 			Log.print(row);
-			for (int j = 0; j <= maxY; ++j) {
+			for (int i = 0; i <= maxX; ++i) {
 				String s = repr[i][j];
 				if (s == null) {
 					s = " ";

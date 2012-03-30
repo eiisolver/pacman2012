@@ -11,6 +11,9 @@ public class Board {
 	public MOVE pacmanLastMove;
 	public boolean[] containsPill;
 	public boolean[] containsPowerPill;
+	/** Locations of the power pills */
+	public int[] powerPillLocation = new int[20];
+	public int nrPowerPills;
 
 	public Board() {
 		ghosts = new MyGhost[GHOST.values().length];
@@ -30,11 +33,14 @@ public class Board {
 			edge.containsPowerPill = false;
 		}
 		containsPowerPill = new boolean[graph.nodes.length];
+		nrPowerPills = 0;
 		for (int index = 0; index < containsPowerPill.length; ++index) {
 			int powerPillIndex = game.getPowerPillIndex(index);
 			containsPowerPill[index] = powerPillIndex >= 0 && game.isPowerPillStillAvailable(powerPillIndex);
 			if (containsPowerPill[index] && !graph.nodes[index].isJunction()) {
 				graph.nodes[index].edge.containsPowerPill = true;
+				powerPillLocation[nrPowerPills] = index;
+				++nrPowerPills;
 			}
 		}
 		pacmanLocation = game.getPacmanCurrentNodeIndex();

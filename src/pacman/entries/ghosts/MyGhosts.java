@@ -22,7 +22,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 	JunctionGraph jgraph = new JunctionGraph();
 	Board board = new Board();
 	int lastMazeIndex = -1;
-	public static final boolean log = false;
+	public static final boolean log = Search.log;
 	
 	static {
 		if (log) {
@@ -56,7 +56,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			long startTime = System.currentTimeMillis();
 			board.update(game);
 			if (log) {
-				Log.println("Time: " + game.getCurrentLevelTime());
+				Log.println("Move: " + game.getCurrentLevelTime());
 				jgraph.print(game, board);
 			}
 			Search.searchMove(timeDue);
@@ -75,6 +75,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			long endTime = System.currentTimeMillis();
 			System.out.println("Time: " + (endTime - startTime) + " ms");
 			Log.println("Time: " + (endTime - startTime) + " ms");
+			Log.flush();
 		}
 		/*int pacmanIndex = game.getPacmanCurrentNodeIndex();
 		Node pacmanNode = jgraph.nodes[pacmanIndex];

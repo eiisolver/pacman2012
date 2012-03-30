@@ -27,7 +27,7 @@ public class PlyInfo {
 	// ############################################################################
 
 	/** Board as it was at the beginning of the ply */
-	Board savedBoard;
+	public Board savedBoard;
 	/** Number of possible moves */
 	int nrPossibleMoves;
 	/** Current move nr; ranges from 0 (first move searched) to nrPossibleMoves */
@@ -156,11 +156,35 @@ public class PlyInfo {
 			unmoveGhosts(Search.b);
 		}
 	}
+	
+	public String moveToString(boolean movePacman) {
+		if (movePacman) {
+			if (pacmanMoveIndex >= 0) {
+				return Search.b.graph.nodes[Search.b.pacmanLocation].neighbourMoves[pacmanMoveIndex].toString();
+			} else {
+				return "NEUTRAL";
+			}
+		} else {
+			StringBuilder buf = new StringBuilder();
+			for (int i = 0; i < ghostMoveIndex.length; ++i) {
+				Node n = Search.b.graph.nodes[Search.b.ghosts[i].currentNodeIndex];
+				buf.append("(" + n.y + "," + n.x + ",");
+				int moveIndex = ghostMoveIndex[i];
+				if (moveIndex >= 0) {
+					buf.append(n.neighbourMoves[moveIndex].toString());
+				} else {
+					buf.append("NEUTRAL");
+				}
+				buf.append(") ");
+			}
+			return buf.toString();
+		}
+	}
 
 	public void movePacman(Board b) {
 		savedBoard.copyFrom(b);
 		if (pacmanMoveIndex >= 0) {
-			Node n = b.graph.nodes[savedBoard.pacmanLocation];
+			Node n = b.graph.nodes[b.pacmanLocation];
 			b.pacmanLocation = n.neighbours[pacmanMoveIndex];
 			b.pacmanLastMove = n.neighbourMoves[pacmanMoveIndex];
 			pillValue = b.containsPill[b.pacmanLocation];

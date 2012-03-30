@@ -39,4 +39,10 @@ public class Log {
 	public static void println() {
 		println("");
 	}
+	
+	public static void flush() {
+		if (out != null) {
+			out.flush();
+		}
+	}
 }

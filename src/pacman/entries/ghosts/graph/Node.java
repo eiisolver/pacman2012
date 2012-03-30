@@ -12,7 +12,6 @@ public class Node {
 	//----------------------------------------------------------------------------
 	// APPLICABLE TO ALL NODES
 	//----------------------------------------------------------------------------
-	public JunctionGraph graph;
 	/** Index of this node in the current maze */
 	public int index;
 	/** The number of neighbours that this node has */
@@ -26,6 +25,8 @@ public class Node {
 	public MOVE[] neighbourMoves;
 	/** The number of ghosts that are on this node */
 	public int nrGhosts;
+	/** x, y coordinates */
+	public int x, y;
 	//----------------------------------------------------------------------------
 	// APPLICABLE TO INTERNAL (NON-JUNCTION) NODES
 	//----------------------------------------------------------------------------
@@ -35,7 +36,15 @@ public class Node {
 	public int[] distToJunction;
 	/** Index of this node on edge.internalNodes */
 	public int edgeIndex;
+	/** 
+	 * if we move forward through the edge (i.e. along increasing indices in edge), 
+	 * then the last move to get to this node was lastMoveIfForward
+	 */
 	MOVE lastMoveIfForward;
+	/** Move from this node to next node on the edge */
+	MOVE moveToNextNode;
+	/** Move from this node to previous node on the edge */
+	MOVE moveToPrevNode;
 	
 	//----------------------------------------------------------------------------
 	// APPLICABLE TO INTERNAL JUNCTION NODES
@@ -76,6 +85,19 @@ public class Node {
 			index = 1;
 		} 
 		return distToJunction[index];
+	}
+	
+	/**
+	 * Given that the last move to get here, what will be the move that
+	 * leads to the next junction? This method provides the answer.
+	 * NOTE: this node must be a non-junction node
+	 */
+	public MOVE getLastMoveToNextJunction(MOVE lastMove) {
+		if (lastMove == lastMoveIfForward) {
+			return edge.internalNodes[edge.internalNodes.length - 1].moveToNextNode;
+		} else {
+			return edge.internalNodes[1].moveToPrevNode;
+		}
 	}
 	
 	/**

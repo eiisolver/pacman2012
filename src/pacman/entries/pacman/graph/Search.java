@@ -13,7 +13,12 @@ import pacman.game.Constants.MOVE;
 import pacman.game.internal.Ghost;
 
 public class Search {
-	private static final boolean log = false;
+	public static final boolean log = false;
+	/**
+	 * If true, we use pacman evaluation function.
+	 */
+	public static boolean pacmanEvaluation = false;
+	public static EvaluationExtra evaluationExtra;
 	/** Absolute maximum value */
 	public static final int MAX_VALUE = 100000;
 	/** score (for ghosts) when we know for sure pacman will die */
@@ -37,6 +42,11 @@ public class Search {
 	private static long emergencyStopTime;
 	/** true if the search stopped in the middle due to emergencyStopTime being reached */
 	private static boolean emergencyStopped;
+	private static StaticEvaluator staticEvaluator = new StaticEvaluator();
+	// helper variables used when calculating shortest path to all edible ghosts
+	private static int[] edibleGhosts = new int[4];
+	private static boolean[] edibleVisited = new boolean[4];
+	private static int nrEdibleGhosts = 0;
 
 	static {
 		init();
@@ -81,7 +91,8 @@ public class Search {
 			emergencyStopTime = timeDue - 6; // now set the real emergency stop time, with a little slack.
 			long timeSpent = System.currentTimeMillis() - startTime;
 			stop = Math.abs(p.bestValue) >= PACMAN_WILL_DIE
-					|| startTime + timeSpent >= normalStopTime;
+					|| startTime + timeSpent >= normalStopTime
+					|| log;
 			p.budget += 10;
 		}
 		if (emergencyStopped) {
@@ -124,8 +135,7 @@ public class Search {
 				p.bestValue = value;
 				return;
 			}
-			p.score += Math.abs(value);
-			if (value != 0) System.out.println("p.score is now " + p.score);
+			p.score += value;
 			// static check if pacman is in danger
 			value = checkPacmanHealth();
 			if (value >= PACMAN_WILL_DIE && currDepth > 0) {
@@ -147,7 +157,7 @@ public class Search {
 		while (!cutoff && p.nextMove(movePacman)) {
 			if (log) {
 				String onlyMove = p.nrPossibleMoves == 1 ? "; only move" : "";
-				log((movePacman ? "pacman move" : "ghost move") + onlyMove);
+				log((movePacman ? "pacman move " : "ghost move ") + p.moveToString(movePacman) + onlyMove);
 			}
 			int value = 0;
 			p.move(movePacman);
@@ -179,7 +189,7 @@ public class Search {
 					}
 				}
 			} else if (log) {
-				log("search returned " + value);
+				log("search returned " + value + ", best value = " + p.bestValue);
 			}
 		}
 	}
@@ -209,19 +219,55 @@ public class Search {
 				++nrJunctionsClosestToPacman;
 			}
 		}
+		
 		// calculate distance of ghost that is nearest to pacman
 		// + try to maximize distance to pacman for eadible ghosts
 		int closestDist = 10000;
+		int farAwayBonus = 0;
 		int edibleDistSum = 0;
+		nrEdibleGhosts = 0;
+		int maxEdibleTime = 0;
 		for (MyGhost ghost : b.ghosts) {
 			int dist = game.getShortestPathDistance(b.pacmanLocation,
 					ghost.currentNodeIndex);
 			if (ghost.edibleTime > 0) {
+				edibleGhosts[nrEdibleGhosts] = ghost.currentNodeIndex;
+				edibleVisited[nrEdibleGhosts] = false;
+				++nrEdibleGhosts;
 				edibleDistSum += dist;
+				if (ghost.edibleTime > maxEdibleTime) {
+					maxEdibleTime = ghost.edibleTime;
+				}
 			} else if (ghost.canKill()) {
 				if (dist < closestDist) {
 					closestDist = dist;
 				}
+				if (dist > 60) {
+					farAwayBonus += 4*(dist - 60);
+				}
+			}
+		}
+		// calculate shortest path to eat all edible ghosts, assuming pacman is greedy;
+		// first moves to closest ghost, then to next, etc.
+		int pathLength = 0; // will contain the length of the path that eats all ghosts
+		int currNode = b.pacmanLocation;
+		for (int i = 0; i < nrEdibleGhosts; ++i) {
+			int shortestDist = 10000;
+			int nearestGhost = -1;
+			for (int g = 0; g < nrEdibleGhosts; ++g) {
+				if (!edibleVisited[g]) {
+					int dist = game.getShortestPathDistance(currNode, edibleGhosts[g]);
+					if (dist < shortestDist) {
+						shortestDist = dist;
+						nearestGhost = g;
+					}
+				}
+			}
+			pathLength += shortestDist;
+			currNode = edibleGhosts[nearestGhost];
+			edibleVisited[nearestGhost] = true;
+			if (pathLength > maxEdibleTime) {
+				break;
 			}
 		}
 		// being on a long big edge is potentially dangerous
@@ -239,66 +285,121 @@ public class Search {
 			edgeLength = pacmanNode.edge.length;
 		}
 		//if (p.score > 0)System.out.println("evaluate: score = " + p.score);
-		// value is relative to ghosts (positive value is bad for pacman)
-		int value = 30*nrJunctionsClosestToPacman + 5*closestDist - 10*edibleDistSum 
-				+ 3*edgeLength - p.score + rand.nextInt(20);
-		if (movePacman) {
-			p.bestValue = value;
+		// value is relative to pacman (positive value is good for pacman)
+		int value;
+		if (pacmanEvaluation) {
+			value = nrJunctionsClosestToPacman + p.score - 40*pathLength;
 		} else {
+			value = 20*nrJunctionsClosestToPacman + 5*closestDist - 40*pathLength + farAwayBonus
+				+ p.score + rand.nextInt(20);
+		}
+		p.bestValue = value;
+		// hook to add some ugly extra evaluation stuff
+		if (evaluationExtra != null) {
+			evaluationExtra.evaluateExtra(p);
+		}
+		if (!movePacman) {
 			p.bestValue = -value;
 		}
 		if (log) {
-			log("eval: value = " + p.bestValue);
+			log("eval: value = " + p.bestValue + ", junctions to pacman: " + nrJunctionsClosestToPacman
+					+ (pathLength == 0 ? "" : ", pathLength: " + pathLength + ", edible time: " + maxEdibleTime));
 		}
 	}
 	
+	
 	private static int checkPacmanHealth() {
 		Node pacmanNode = graph.nodes[b.pacmanLocation];
-		if (pacmanNode.isJunction()) {
-			return 0;
-		}
-		int nextAttackedJunction = -1;
-		for (MyGhost ghost : b.ghosts) {
-			if (ghost.lairTime == 0 && ghost.edibleTime == 0) {
-				Node ghostNode = graph.nodes[ghost.currentNodeIndex];
-				if (!ghostNode.isJunction() && ghostNode.edge == pacmanNode.edge && !pacmanNode.edge.containsPowerPill) {
-					if (ghostNode.isOnPath(pacmanNode, ghost.lastMoveMade)) {
-						// the ghost attacks pacman
-						if (log) {
-							log(ghost.ghost + " attacks pacman");
-						}
-						int nextJunction = ghostNode.getNextJunction(ghost.lastMoveMade);
-						if (nextAttackedJunction == -1) {
-							nextAttackedJunction = nextJunction;
-						} else if (nextAttackedJunction != nextJunction) {
-							// pacman attacked from 2 sides, he will die
-							if (log) log("Pacman will die");
-							return PACMAN_WILL_DIE;
-						}
-					}
-				}
-			}
-		}
-		if (nextAttackedJunction != -1) {
-			// check if a ghost is closer to the junction than pacman
-			int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, nextAttackedJunction);
+		// check if pacman can get safely to a power pill
+		for (int i = 0; i < b.nrPowerPills; ++i) {
+			int powerPill = b.powerPillLocation[i];
+			int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, powerPill);
+			int ghostDist = 100000;
 			for (MyGhost ghost : b.ghosts) {
-				if (ghost.lairTime == 0 && ghost.edibleTime == 0) {
-					Node ghostNode = graph.nodes[ghost.currentNodeIndex];
-					int dist = game.getShortestPathDistance(ghost.currentNodeIndex, nextAttackedJunction);
-					if (dist <= pacmanDist) {
-						// looks dangerous
-						//return PACMAN_WILL_DIE;
+				if (ghost.canKill()) {
+					// TODO: not really accurate to use getShortestPathDistance
+					int dist = game.getShortestPathDistance(ghost.currentNodeIndex, powerPill);
+					if (dist < ghostDist) {
+						ghostDist = dist;
 					}
 				}
 			}
+			if (pacmanDist < ghostDist) {
+				// we have found a power pill that is closer to pacman than to any ghost.
+				// pacman is safe.
+				return 0;
+			}
 		}
-		return 0;
+		boolean pacmanDies = false;
+		if (pacmanNode.isJunction()) {
+			staticEvaluator.nrJunctions = pacmanNode.nrNeighbours;
+			for (int i = 0; i < pacmanNode.nrNeighbours; ++i) {
+				BigEdge edge = nodes[pacmanNode.neighbours[i]].edge;
+				Node otherJunction = edge.getOtherJunction(pacmanNode);
+				staticEvaluator.edges[i] = edge;
+				staticEvaluator.junctions[i] = otherJunction.index;
+			}
+			pacmanDies = staticEvaluator.checkPacmanHealth("pacman on junction");
+		} else {
+			// check if there are two other ghosts on the same edge as pacman, attacking from 
+			// both sides
+			BigEdge pacmanEdge = pacmanNode.edge;
+			pacmanDies = staticEvaluator.checkPacmanHealth(pacmanEdge.endpoints[0].index, pacmanEdge, 
+					pacmanEdge.endpoints[1].index, pacmanEdge, "direct pacman edge");
+			if (!pacmanDies) {
+				pacmanDies = checkPacmanEdgeJunction(pacmanEdge.endpoints[0].index);
+			}
+			if (!pacmanDies) {
+				pacmanDies = checkPacmanEdgeJunction(pacmanEdge.endpoints[1].index);
+			}
+			if (!pacmanDies && pacmanEdge.endpoints[0].nrNeighbours + pacmanEdge.endpoints[1].nrNeighbours <= 6) {
+				// pacman will die if ghosts are closer to the 4 junctions that are 2 junctions away from pacman
+				int nrJunctions = 0;
+				for (int e = 0; e < 2; ++e) {
+					Node junction = pacmanEdge.endpoints[e];
+					for (int i = 0; i < junction.nrNeighbours; ++i) {
+						BigEdge edge = junction.edges[i];
+						if (edge != pacmanEdge) {
+							// otherJunction lies 2 junctions away
+							Node otherJunction = edge.getOtherJunction(pacmanEdge.endpoints[e]);
+							staticEvaluator.edges[nrJunctions] = edge;
+							staticEvaluator.junctions[nrJunctions] = otherJunction.index;
+							++nrJunctions;
+						}
+					}
+				}
+				staticEvaluator.nrJunctions = nrJunctions;
+				pacmanDies = staticEvaluator.checkPacmanHealth("pacman 2 junctions away");
+			}
+		}
+		return pacmanDies ? PACMAN_WILL_DIE : 0;
 	}
-
+	
+	private static boolean checkPacmanEdgeJunction(int junction) {
+		Node pacmanNode = graph.nodes[b.pacmanLocation];
+		BigEdge pacmanEdge = pacmanNode.edge;
+		Node junction2 = pacmanEdge.getOtherJunction(nodes[junction]);
+		staticEvaluator.edges[0] = pacmanEdge;
+		staticEvaluator.junctions[0] = junction;
+		int nrJunctions = 1;
+		for (int i = 0; i < junction2.nrNeighbours; ++i) {
+			BigEdge edge = nodes[junction2.neighbours[i]].edge;
+			if (edge != pacmanEdge) {
+				Node otherJunction = edge.getOtherJunction(junction2);
+				staticEvaluator.edges[nrJunctions] = edge;
+				staticEvaluator.junctions[nrJunctions] = otherJunction.index;
+				staticEvaluator.firstMoveFromJunctions[nrJunctions] = edge.getFirstMove(otherJunction);
+				++nrJunctions;
+			}
+		}
+		staticEvaluator.nrJunctions = nrJunctions;
+		boolean pacmanDies = staticEvaluator.checkPacmanHealth("pacman edge/junctions");
+		return pacmanDies;
+	}
+	
 	/**
 	 * Checks for dead pacman or dead ghosts.
-	 * Returns score points for killed ghosts.
+	 * Returns score points for killed ghosts. (stolen from Game._feast)
 	 * @param movePacman
 	 * @return
 	 */
@@ -312,7 +413,7 @@ public class Search {
 			if (distance <= EAT_DISTANCE && distance != -1) {
 				if (ghost.edibleTime > 0) {
 					// pac-man eats ghost
-					log("ghost dies");
+					log("ghost dies, within eat distance");
 					score -= GHOST_EAT_SCORE * ghostEatMultiplier;
 					ghostEatMultiplier *= 2;
 					/*ghost.edibleTime = 0;
@@ -322,7 +423,7 @@ public class Search {
 				} else {
 					// ghost eats pac-man
 					score = PACMAN_DIES_VALUE;
-					log("pacman dies");
+					log("pacman dies, within eat distance");
 				}
 			}
 		}
@@ -341,5 +442,125 @@ public class Search {
 		}
 		Log.print(currDepth + " ");
 		Log.println(msg);
+	}
+	
+	// ############################################################################
+	// StaticEvaluator
+	// ############################################################################
+
+	/** 
+	 * Helper class used to check statically if pacman can escape via a set
+	 * of provided junctions.
+	 * @author louis
+	 *
+	 */
+	private static class StaticEvaluator {
+		/** junctions of interest */
+		public int[] junctions = new int[4];
+		/** edges of interest */
+		public BigEdge[] edges = new BigEdge[4];
+		public int nrJunctions;
+		/** The first move from the junction to go towards pacman */
+		private MOVE[] firstMoveFromJunctions = new MOVE[4];
+		//boolean[] includedGhosts = new boolean[GHOST.values().length];
+		private int[] pacmanDist = new int[4];
+		/**
+		 * ghostIsCloser[ghost] contains bitmap, if bit set is true -> ghost is closer to that junction than pacman
+		 */
+		private int[] ghostIsCloser;
+		
+		public boolean checkPacmanHealth(int junction1, BigEdge edge1, int junction2, BigEdge edge2, String logMsg) {
+			nrJunctions = 2;
+			junctions[0] = junction1;
+			junctions[1] = junction2;
+			edges[0] = edge1;
+			edges[1] = edge2;
+			return checkPacmanHealth(logMsg);
+		}
+
+		/**
+		 * Returns true if pacman will die.
+		 * @param logMsg
+		 * @return
+		 */
+		public boolean checkPacmanHealth(String logMsg) {
+			for (int i = 0; i < nrJunctions; ++i) {
+				firstMoveFromJunctions[i] = edges[i].getFirstMove(nodes[junctions[i]]);
+				pacmanDist[i] = game.getShortestPathDistance(b.pacmanLocation, junctions[i]) + 2*EAT_DISTANCE + 1;
+			}
+			ghostIsCloser = new int[GHOST.values().length];
+			for (int j = 0; j < nrJunctions; ++j) {
+				boolean someGhostIsCloser = false;
+				for (int g = 0; g < b.ghosts.length; ++g) {
+					MyGhost ghost = b.ghosts[g];
+					if (ghost.canKill()) {
+						Node ghostNode = nodes[ghost.currentNodeIndex];
+						if (ghostNode.edge == edges[j] && ghostNode.getNextJunction(ghost.lastMoveMade) != junctions[j]) {
+							// ghost is already on the edge, on the move to pacman. Pacman cannot escape via this junction
+							// unless ghost is on same edge as pacman and already past pacman.
+							Node pacmanNode = nodes[b.pacmanLocation];
+							if (pacmanNode.edge != ghostNode.edge || ghostNode.isOnPath(pacmanNode, ghost.lastMoveMade)) {
+								ghostIsCloser[g] |= 1 << j;
+								someGhostIsCloser = true;
+							}
+						} else {
+							int dist = game.getShortestPathDistance(ghost.currentNodeIndex, junctions[j]);
+							if (dist <= pacmanDist[j]) {
+								// ghost is closer, but can it also move to the junction
+								dist = graph.getGhostDistToJunction(ghost.currentNodeIndex, ghost.lastMoveMade, 
+										junctions[j], firstMoveFromJunctions[j]);
+								if (dist <= pacmanDist[j]) {
+									ghostIsCloser[g] |= 1 << j;
+									someGhostIsCloser = true;
+								}
+							}
+						}
+					}
+				}
+				if (!someGhostIsCloser) {
+					return false; // pacman can escape safely to junction j
+				}
+			}
+			if (log) log("ghosts are closer; check for match");
+			// we have some ghost closer to every junction. But it must be distinct ghosts! (one ghost can only cover 1 junction)
+			if (match(ghostIsCloser, nrJunctions)) {
+				if (log) log("Pacman will die: " + logMsg);
+				return true;
+			}
+			if (log) log("no match, pacman survives");
+			return false;
+		}
+		
+		/**
+		 * check that every bit 0..n-1 is covered at least once by different ghosts
+		 * @param arr every element contains bit mask for a ghost, bit set means ghost is closer to junction than pacman
+		 * @param n
+		 * @return
+		 */
+	    private boolean match(int[] arr, int n) {
+	        if (n == 0) {
+	            return true;
+	        }
+	        for (int i = 0; i < arr.length; ++i) {
+	            for (int j = 0; j < n; ++j) {
+	                if ((arr[i] & (1 <<j)) != 0) {
+	                    int mask = (1 << j) - 1;
+	                    int[] arr2 = new int[arr.length];
+	                    for (int k = 0; k < arr.length; ++k) {
+	                        if (k == i) {
+	                            arr2[k] = 0;
+	                        } else {
+	                            arr2[k] = (arr[k] & mask)
+	                                    | ((arr[k] >> 1) & ~mask);
+	                        }
+	                    }
+	                    if (match(arr2, n-1)) {
+	                        return true;
+	                    }
+	                }
+	            }
+	        }
+	        return false;
+	    }
 	}
 }
