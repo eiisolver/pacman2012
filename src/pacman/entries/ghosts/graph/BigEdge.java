@@ -57,4 +57,24 @@ public class BigEdge {
 			return firstMoveToOtherEnd[0];
 		}
 	}
+	
+	/**
+	 * Return length from n1 (can be junction or internal node
+	 * on this edge) to junction (which must be one of the endpoints
+	 * of this edge).
+	 * @param n1
+	 * @param junction
+	 * @return
+	 */
+	public int getDistanceToJunction(Node n1, Node junction) {
+		if (n1 == junction) {
+			return 0;
+		} else if (n1.isJunction()) {
+			return length;
+		} else if (junction == endpoints[0]) {
+			return n1.edgeIndex+1;
+		} else {
+			return length - n1.edgeIndex;
+		}
+	}
 }

@@ -126,4 +126,8 @@ public class Node {
 		return Math.abs(edgeIndex - nodeOnEdge.edgeIndex);
 	}
 	
+	@Override
+	public String toString() {
+		return "(" + y + "," + x + ")";
+	}
 }
