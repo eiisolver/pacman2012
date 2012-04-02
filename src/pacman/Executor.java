@@ -67,7 +67,9 @@ public class Executor
 		exec.runGameTimed(new MyPacMan(),new MyGhosts(),visual);
 		//exec.runGameTimed(new HumanController(new KeyBoardInput()),new MyGhosts(),visual);			
 		//*/
-		
+		String fileName="replay.txt";
+		//exec.runGameTimedRecorded(new MyPacMan(),new StarterGhosts(),false,fileName);
+		//exec.replayGame(fileName,visual);
 		/*
 		//run the game in asynchronous mode but advance as soon as both controllers are ready  - this is the mode of the competition.
 		//time limit of DELAY ms still applies.

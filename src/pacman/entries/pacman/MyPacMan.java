@@ -63,12 +63,18 @@ public class MyPacMan extends Controller<MOVE>
 		System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
 		Search.searchMove(timeDue);
 		PlyInfo p = Search.plyInfo[0];
-		Log.println( "Searched " + Search.nodesSearched + " nodes, value: " + p.bestValue);
+		Log.println( "Searched " + Search.nodesSearched 
+				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
+				+ ", value: " + p.bestValue);
+		System.out.println("Move: " + game.getCurrentLevelTime() 
+				+ ", Pacman searched " + Search.nodesSearched 
+				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
+				+ ", value: " + p.bestValue);
 		if (p.bestValue < -20000) {
 			Log.println("I will loose");
+		} else if (p.bestValue > 20000) {
+			Log.println("I won");
 		}
-		System.out.println("Move: " + game.getCurrentLevelTime() 
-				+ ", Pacman searched " + Search.nodesSearched + " nodes, budget: " + p.budget + ", value: " + p.bestValue);
 		int bestMove = p.bestPacmanMove;
 		Node n = jgraph.nodes[board.pacmanLocation];
 		myMove = n.neighbourMoves[bestMove];

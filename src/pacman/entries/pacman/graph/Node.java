@@ -23,8 +23,6 @@ public class Node {
 	 * neighbourMoves[0] takes you to neighbours[0]
 	 */
 	public MOVE[] neighbourMoves;
-	/** The number of ghosts that are on this node */
-	public int nrGhosts;
 	/** x, y coordinates */
 	public int x, y;
 	//----------------------------------------------------------------------------

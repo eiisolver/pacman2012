@@ -240,7 +240,7 @@ public class JunctionGraph {
 		}*/
 		boolean[] visited = new boolean[junctionNodes.length];
 		long startTime = System.currentTimeMillis();
-		for (int maxDepth = 1; maxDepth < 20 && System.currentTimeMillis() - startTime < 200; ++maxDepth) {
+		for (int maxDepth = 1; maxDepth < 10 && System.currentTimeMillis() - startTime < 100; ++maxDepth) {
 			System.out.println("walk, maxDepth = " + maxDepth);
 			nrVisit = 0;
 			for (int i = 0; i < junctionNodes.length; ++i) {
@@ -252,7 +252,7 @@ public class JunctionGraph {
 					MOVE startMove = edge.getFirstMove(start);
 					Node nextNode = edge.getOtherJunction(start);
 					MOVE nextLastMove = edge.getFirstMove(nextNode).opposite();
-					walk(visited, start, startMove, nextNode, nextLastMove, edge.length, maxDepth);
+					walk(visited, start, startMove, nextNode, nextLastMove, edge.length, maxDepth, 120);
 				}
 			}
 			System.out.println("visits = " + nrVisit + ", time: " + (System.currentTimeMillis()-startTime));
@@ -261,7 +261,7 @@ public class JunctionGraph {
 	
 	static long nrVisit = 0;
 	
-	private void walk(boolean[] visited, Node start, MOVE startMove, Node end, MOVE lastMove, int currDist, int depth) {
+	private void walk(boolean[] visited, Node start, MOVE startMove, Node end, MOVE lastMove, int currDist, int depth, int maxDist) {
 		++nrVisit;
 		// update distances
 		boolean improvedDistance = false;
@@ -273,16 +273,21 @@ public class JunctionGraph {
 						int m1 = moveToStart.ordinal();
 						int m2 = end.neighbourMoves[j].ordinal();
 						int[] arr = ghostDist[m1][start.junctionIndex][m2];
-						if (arr[end.junctionIndex] > currDist) {
+						if (currDist < arr[end.junctionIndex]) {
 							arr[end.junctionIndex] = currDist;
 							ghostDist[m2][end.junctionIndex][m1][start.junctionIndex] = currDist;
 							improvedDistance = true;
+							if (currDist < ghostDist[MOVE.NEUTRAL.ordinal()][start.junctionIndex][m2][end.junctionIndex]) {
+								ghostDist[MOVE.NEUTRAL.ordinal()][start.junctionIndex][m2][end.junctionIndex] = currDist;
+								ghostDist[m2][end.junctionIndex][MOVE.NEUTRAL.ordinal()][start.junctionIndex] = currDist;
+							}
 						}
 					}
 				}
 			}
 		}
-		if (visited[end.junctionIndex] && !improvedDistance) {
+		//if (visited[end.junctionIndex] && !improvedDistance) {
+		if (maxDist <= 0) {
 			return;
 		}
 		visited[end.junctionIndex] = true;
@@ -291,7 +296,7 @@ public class JunctionGraph {
 				BigEdge edge = end.edges[i];
 				Node nextNode = edge.getOtherJunction(end);
 				MOVE nextLastMove = edge.getFirstMove(nextNode).opposite();
-				walk(visited, start, startMove, nextNode, nextLastMove, currDist + edge.length, depth - 1);
+				walk(visited, start, startMove, nextNode, nextLastMove, currDist + edge.length, depth - 1, maxDist - edge.length);
 			}
 		}
 	}
@@ -310,24 +315,25 @@ public class JunctionGraph {
 				maxY = y;
 			}
 			Node n = nodes[i];
-			String s = ".";
-			if (n.index == game.getPacmanCurrentNodeIndex()) {
-				s = "P";
-			} else if (n.nrGhosts > 0) {
-				for (int g = 0; g < b.ghosts.length; ++g) {
-					if (b.ghosts[g].currentNodeIndex == n.index) {
-						s = "" + b.ghosts[g].lastMoveMade.toString().charAt(0);
-						if (b.ghosts[g].edibleTime > 0) {
-							s = s.toLowerCase();
-						}
-						break;
+			String s = null;
+			for (int g = 0; g < b.ghosts.length; ++g) {
+				if (b.ghosts[g].currentNodeIndex == n.index) {
+					s = "" + b.ghosts[g].lastMoveMade.toString().charAt(0);
+					if (b.ghosts[g].edibleTime > 0) {
+						s = s.toLowerCase();
 					}
+					break;
 				}
-				//s = "G";
-			} else if (b.containsPowerPill[i]) {
-				s = "X";
-			} else if (b.containsPill[i]) {
-				s = "o";
+			}
+			if (s == null) {
+				s = ".";
+				if (n.index == game.getPacmanCurrentNodeIndex()) {
+					s = "P";
+				} else if (b.containsPowerPill[i]) {
+					s = "X";
+				} else if (b.containsPill[i]) {
+					s = "o";
+				}
 			}
 			repr[x][y] = s;
 			/*if (n.isJunction()) {

@@ -74,7 +74,7 @@ public class BigEdge {
 		} else if (junction == endpoints[0]) {
 			return n1.edgeIndex+1;
 		} else {
-			return length - n1.edgeIndex;
+			return length - 1 - n1.edgeIndex;
 		}
 	}
 }

@@ -40,6 +40,8 @@ public class PlyInfo {
 	boolean pillValue;
 	/** if a power pill was eaten at this move */
 	boolean powerPillValue;
+	/** if a ghost was killed at this move */
+	boolean ghostKilled;
 	
 	// ############################################################################
 	// OUTPUT PARAMETERS
@@ -60,16 +62,26 @@ public class PlyInfo {
 	 * Initializes move generation. Updates nrPossibleMoves
 	 * @param movePacman
 	 */
-	public void initMove(boolean movePacman) {
+	public void initMove(boolean movePacman, boolean skipOpposite) {
 		currMoveNr = 0;
 		if (movePacman) {
-			pacmanMoveIndex = -1;
-			nrPossibleMoves = Search.nodes[Search.b.pacmanLocation].nrNeighbours;
+			Node n = Search.nodes[Search.b.pacmanLocation];
+			if (skipOpposite) {
+				for (int e = 0; e < n.nrNeighbours; ++e) {
+					if (n.neighbourMoves[e] != Search.b.pacmanLastMove.opposite()) {
+						pacmanMoveIndex = e-1;
+					}
+				}
+				nrPossibleMoves = 1;
+			} else {
+				pacmanMoveIndex = -1;
+				nrPossibleMoves = n.nrNeighbours;
+			}
 		} else {
 			nrPossibleMoves = 1;
 			for (int i = 0; i < ghostMoveIndex.length; ++i) {
 				MyGhost ghost = Search.b.ghosts[i];
-				if (ghost.lairTime > 0) {
+				if (ghost.lairTime > 0 || (ghost.edibleTime > 0 && (ghost.edibleTime & 1) == 0)) {
 					ghostMoveIndex[i] = -2;
 				} else {
 					Node n = Search.nodes[ghost.currentNodeIndex];
@@ -167,68 +179,91 @@ public class PlyInfo {
 		} else {
 			StringBuilder buf = new StringBuilder();
 			for (int i = 0; i < ghostMoveIndex.length; ++i) {
-				Node n = Search.b.graph.nodes[Search.b.ghosts[i].currentNodeIndex];
-				buf.append("(" + n.y + "," + n.x + ",");
-				int moveIndex = ghostMoveIndex[i];
-				if (moveIndex >= 0) {
-					buf.append(n.neighbourMoves[moveIndex].toString());
-				} else {
-					buf.append("NEUTRAL");
+				int index = Search.b.ghosts[i].currentNodeIndex;
+				if (index >= 0) {
+					Node n = Search.b.graph.nodes[index];
+					buf.append("(" + n.y + "," + n.x + ",");
+					int moveIndex = ghostMoveIndex[i];
+					if (moveIndex >= 0) {
+						buf.append(n.neighbourMoves[moveIndex].toString());
+					} else {
+						buf.append("NEUTRAL");
+					}
+					buf.append(") ");
 				}
-				buf.append(") ");
 			}
 			return buf.toString();
 		}
 	}
 
 	public void movePacman(Board b) {
+		moveScore = 0;
 		savedBoard.copyFrom(b);
 		if (pacmanMoveIndex >= 0) {
+			moveScore -= Search.heuristics.getNodeScore(b.pacmanLocation);
 			Node n = b.graph.nodes[b.pacmanLocation];
 			b.pacmanLocation = n.neighbours[pacmanMoveIndex];
 			b.pacmanLastMove = n.neighbourMoves[pacmanMoveIndex];
+			moveScore += Search.heuristics.getNodeScore(b.pacmanLocation);
 			pillValue = b.containsPill[b.pacmanLocation];
 			if (pillValue) {
-				moveScore = Constants.PILL;
+				--b.nrPillsLeft;
+				moveScore += Search.heuristics.getPillScore(b.pacmanLocation);
 			}
 			b.containsPill[b.pacmanLocation] = false;
 			powerPillValue = b.containsPowerPill[b.pacmanLocation];
 			if (powerPillValue) {
-				moveScore = Constants.POWER_PILL;
+				--b.nrPowerPillsLeft;
+				moveScore += Search.heuristics.getPowerPillScore(b.pacmanLocation);
+				for (int i = 0; i < ghostMoveIndex.length; ++i) {
+					MyGhost ghost = b.ghosts[i];
+					ghost.edibleTime = Search.b.currentEdibleTime;
+					ghost.lastMoveMade = ghost.lastMoveMade.opposite();
+				}
 			}
 			b.containsPowerPill[b.pacmanLocation] = false;
 		}
 	}
 
 	public void unmovePacman(Board b) {
+		if (pillValue) {
+			++b.nrPillsLeft;
+		}
+		b.containsPill[b.pacmanLocation] = pillValue;
+		if (powerPillValue) {
+			++b.nrPowerPillsLeft;
+		}
+		b.containsPowerPill[b.pacmanLocation] = powerPillValue;
 		if (pacmanMoveIndex >= 0) {
 			b.copyFrom(savedBoard);
-			b.containsPill[b.pacmanLocation] = pillValue;
-			b.containsPowerPill[b.pacmanLocation] = powerPillValue;
 		}
 	}
 
 	public void moveGhosts(Board b) {
 		savedBoard.copyFrom(b);
 		for (int i = 0; i < ghostMoveIndex.length; ++i) {
+			MyGhost ghost = b.ghosts[i];
 			int moveIndex = ghostMoveIndex[i];
 			if (moveIndex >= 0) {
 				Node n = b.graph.nodes[b.ghosts[i].currentNodeIndex];
-				--n.nrGhosts;
-				++b.graph.nodes[n.neighbours[moveIndex]].nrGhosts;
-				b.ghosts[i].currentNodeIndex = n.neighbours[moveIndex];
-				b.ghosts[i].lastMoveMade = n.neighbourMoves[moveIndex];
+				ghost.currentNodeIndex = n.neighbours[moveIndex];
+				ghost.lastMoveMade = n.neighbourMoves[moveIndex];
+			}
+			if (ghost.edibleTime > 0) {
+				--ghost.edibleTime;
+			}
+			if (ghost.lairTime > 0) {
+				--ghost.lairTime;
+				if (ghost.lairTime == 0) {
+					ghost.currentNodeIndex = Search.game.getGhostInitialNodeIndex();
+					ghost.edibleTime = 0;
+					ghost.lastMoveMade = MOVE.NEUTRAL;
+				}
 			}
 		}
 	}
 
 	public void unmoveGhosts(Board b) {
-		for (int i = 0; i < ghostMoveIndex.length; ++i) {
-			if (ghostMoveIndex[i] >= 0) {
-				--b.graph.nodes[b.ghosts[i].currentNodeIndex].nrGhosts;
-				++b.graph.nodes[b.ghosts[i].currentNodeIndex].nrGhosts;
-			}
-		}
 		b.copyFrom(savedBoard);
 	}
 	
