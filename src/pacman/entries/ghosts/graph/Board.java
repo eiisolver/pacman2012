@@ -84,4 +84,8 @@ public class Board {
 			ghosts[i].copyFrom(src.ghosts[i]);
 		}
 	}
+	
+	public void logBoard(Game game) {
+		graph.print(game, this);
+	}
 }

@@ -33,6 +33,8 @@ public class PlyInfo {
 	/** Current move nr; ranges from 0 (first move searched) to nrPossibleMoves */
 	int currMoveNr;
 	int pacmanMoveIndex;
+	/** contains the moves that pacman can make at this ply; indices into pacmanLocation.neighbours */
+	int[] pacmanMoves = new int[4];
 	int[] ghostMoveIndex;
 	/** Points scored at this move */
 	int moveScore;
@@ -66,17 +68,28 @@ public class PlyInfo {
 		currMoveNr = 0;
 		if (movePacman) {
 			Node n = Search.nodes[Search.b.pacmanLocation];
-			if (skipOpposite) {
+			nrPossibleMoves = 0;
+			for (int e = 0; e < n.nrNeighbours; ++e) {
+				if (!Search.skipMoveTowardsGhost(n.neighbours[e])) {
+					pacmanMoves[nrPossibleMoves] = e;
+					++nrPossibleMoves;
+				} else if (Search.log)Search.log("Skip move towards ghost: " + n.neighbourMoves[e]);
+			}
+			if (nrPossibleMoves == 0) {
+				// all moves are towards a ghost; just pick a random one
+				pacmanMoves[0] = 0;
+				nrPossibleMoves = 1;
+			} else if (nrPossibleMoves == n.nrNeighbours && skipOpposite) {
+				nrPossibleMoves = 0;
+				// no moves were skipped due to moving to ghost; do move generation once more; skip opposite move
 				for (int e = 0; e < n.nrNeighbours; ++e) {
 					if (n.neighbourMoves[e] != Search.b.pacmanLastMove.opposite()) {
-						pacmanMoveIndex = e-1;
+						pacmanMoves[nrPossibleMoves] = e;
+						++nrPossibleMoves;
 					}
 				}
-				nrPossibleMoves = 1;
-			} else {
-				pacmanMoveIndex = -1;
-				nrPossibleMoves = n.nrNeighbours;
 			}
+			pacmanMoveIndex = -1;
 		} else {
 			nrPossibleMoves = 1;
 			for (int i = 0; i < ghostMoveIndex.length; ++i) {
@@ -115,7 +128,7 @@ public class PlyInfo {
 	
 	public void saveBestMove(boolean movePacman) {
 		if (movePacman) {
-			bestPacmanMove = pacmanMoveIndex;
+			bestPacmanMove = pacmanMoves[pacmanMoveIndex];
 		} else {
 			for (int i = 0; i < bestGhostMove.length; ++i) {
 				bestGhostMove[i] = ghostMoveIndex[i];
@@ -172,7 +185,7 @@ public class PlyInfo {
 	public String moveToString(boolean movePacman) {
 		if (movePacman) {
 			if (pacmanMoveIndex >= 0) {
-				return Search.b.graph.nodes[Search.b.pacmanLocation].neighbourMoves[pacmanMoveIndex].toString();
+				return Search.b.graph.nodes[Search.b.pacmanLocation].neighbourMoves[pacmanMoves[pacmanMoveIndex]].toString();
 			} else {
 				return "NEUTRAL";
 			}
@@ -202,8 +215,9 @@ public class PlyInfo {
 		if (pacmanMoveIndex >= 0) {
 			moveScore -= Search.heuristics.getNodeScore(b.pacmanLocation);
 			Node n = b.graph.nodes[b.pacmanLocation];
-			b.pacmanLocation = n.neighbours[pacmanMoveIndex];
-			b.pacmanLastMove = n.neighbourMoves[pacmanMoveIndex];
+			int index = pacmanMoves[pacmanMoveIndex];
+			b.pacmanLocation = n.neighbours[index];
+			b.pacmanLastMove = n.neighbourMoves[index];
 			moveScore += Search.heuristics.getNodeScore(b.pacmanLocation);
 			pillValue = b.containsPill[b.pacmanLocation];
 			if (pillValue) {

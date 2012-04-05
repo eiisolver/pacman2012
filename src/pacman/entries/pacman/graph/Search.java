@@ -148,11 +148,13 @@ public class Search {
 				return;
 			}
 			p.score += value;
-			// static check if pacman is in danger
-			value = checkPacmanHealth();
-			if (value >= PACMAN_WILL_DIE && currDepth > 0) {
-				p.bestValue = movePacman ? -value : value;
-				return;
+			if (currDepth < 2 || plyInfo[currDepth-2].nrPossibleMoves > 1 || plyInfo[currDepth-1].nrPossibleMoves > 1) {
+				// static check if pacman is in danger
+				value = checkPacmanHealth();
+				if (value >= PACMAN_WILL_DIE && currDepth > 0) {
+					p.bestValue = movePacman ? -value : value;
+					return;
+				}
 			}
 		}
 		p.moveScore = 0;
@@ -166,7 +168,7 @@ public class Search {
 		boolean skipOpposite = false;
 		if (movePacman) {
 			skipOpposite = currDepth >= 2 && plyInfo[currDepth-1].nrPossibleMoves == 1
-					&& !plyInfo[currDepth-2].pillValue && !plyInfo[currDepth-2].powerPillValue
+					/*&& !plyInfo[currDepth-2].pillValue*/&& (currDepth & 7) != 0 && !plyInfo[currDepth-2].powerPillValue
 					&& !plyInfo[currDepth & ~1].ghostKilled && !nodes[b.pacmanLocation].isJunction();
 			if (log && skipOpposite) log("Skip opposite");
 		}
@@ -262,7 +264,7 @@ public class Search {
 			for (MyGhost ghost : b.ghosts) {
 				if (ghost.lairTime == 0) {
 					int ghostDist = ghostDist(ghost, game.getShortestPathDistance(ghost.currentNodeIndex, n.index));
-					if (ghostDist < pacmanDist) {
+					if (ghostDist + EAT_DISTANCE < pacmanDist) {
 						pacmanIsClosest = false;
 						break;
 					}
@@ -380,12 +382,13 @@ public class Search {
 		if (pacmanEvaluation) {
 			value += nrJunctionsClosestToPacman + rand.nextInt(4);
 		} else {
-			value += 20*nrJunctionsClosestToPacman + 5*closestDist + farAwayBonus + rand.nextInt(20);
+			value = 20*nrJunctionsClosestToPacman + 5*closestDist + farAwayBonus + rand.nextInt(20)
+					+ (p.score + edibleBonus)/80;
 		}
 		p.bestValue = value;
 		// hook to add some ugly extra evaluation stuff
 		if (evaluationExtra != null) {
-			evaluationExtra.evaluateExtra(p);
+			//evaluationExtra.evaluateExtra(p);
 		}
 		if (!movePacman) {
 			p.bestValue = -value;
@@ -398,7 +401,7 @@ public class Search {
 	}
 	
 	
-	private static int checkPacmanHealth() {
+	public static int checkPacmanHealth() {
 		Node pacmanNode = graph.nodes[b.pacmanLocation];
 		// check if pacman can get safely to a power pill
 		for (int i = 0; i < b.nrPowerPills; ++i) {
@@ -537,7 +540,45 @@ public class Search {
 		return score;
 	}
 
-	private static void log(String msg) {
+	public static boolean skipMoveTowardsGhost(int destLocation) {
+		if (currDepth == 0) {
+			return false;
+		}
+		Node destNode = nodes[destLocation];
+		boolean skip = false;
+		if (!destNode.isJunction()) {
+			BigEdge edge = destNode.edge;
+			for (int g = 0; g < b.ghosts.length; ++g) {
+				MyGhost ghost = b.ghosts[g];
+				if (ghost.canKill()) {
+					Node ghostNode = nodes[ghost.currentNodeIndex];
+					if (ghostNode.edge == edge && ghostNode.isOnPath(destNode, ghost.lastMoveMade)) {
+						int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, ghost.currentNodeIndex);
+						int newDist = Math.abs(destNode.edgeIndex - ghostNode.edgeIndex);
+						if (newDist < pacmanDist) {
+							// the move is towards the ghost; check if there is something interesting on the
+							// path halfway to the ghost
+							int middle = (destNode.edgeIndex + ghostNode.edgeIndex)/2;
+							int step = middle >= destNode.edgeIndex ? 1 : -1;
+							for (int i = destNode.edgeIndex; i != middle; i += step) {
+								Node n = edge.internalNodes[i];
+								if (b.containsPill[n.index] || b.containsPowerPill[n.index]) {
+									return false;
+								}
+							}
+							skip = true; // no, nothing interesting
+						}
+					}
+				} else if (ghost.lairTime == 0 && nodes[ghost.currentNodeIndex].edge == edge) {
+					// edible ghost is on the path; don't skip under any condition
+					return false;
+				}
+			}
+		}
+		return skip;
+	}
+
+	public static void log(String msg) {
 		if (!log) {
 			return;
 		}
@@ -651,37 +692,41 @@ public class Search {
 			if (log) log("no match, pacman survives");
 			return false;
 		}
-		
-		/**
-		 * check that every bit 0..n-1 is covered at least once by different ghosts
-		 * @param arr every element contains bit mask for a ghost, bit set means ghost is closer to junction than pacman
-		 * @param n
-		 * @return
-		 */
-	    private boolean match(int[] arr, int n) {
-	        if (n == 0) {
-	            return true;
-	        }
-	        for (int i = 0; i < arr.length; ++i) {
-	            for (int j = 0; j < n; ++j) {
-	                if ((arr[i] & (1 <<j)) != 0) {
-	                    int mask = (1 << j) - 1;
-	                    int[] arr2 = new int[arr.length];
-	                    for (int k = 0; k < arr.length; ++k) {
-	                        if (k == i) {
-	                            arr2[k] = 0;
-	                        } else {
-	                            arr2[k] = (arr[k] & mask)
-	                                    | ((arr[k] >> 1) & ~mask);
-	                        }
-	                    }
-	                    if (match(arr2, n-1)) {
-	                        return true;
-	                    }
-	                }
-	            }
-	        }
-	        return false;
-	    }
 	}
+	
+	private static class StaticEvaluator2 {
+		
+	}
+	
+	/**
+	 * check that every bit 0..n-1 is covered at least once by different ghosts
+	 * @param arr every element contains bit mask for a ghost, bit set means ghost is closer to junction than pacman
+	 * @param n
+	 * @return
+	 */
+    private static boolean match(int[] arr, int n) {
+        if (n == 0) {
+            return true;
+        }
+        for (int i = 0; i < arr.length; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if ((arr[i] & (1 <<j)) != 0) {
+                    int mask = (1 << j) - 1;
+                    int[] arr2 = new int[arr.length];
+                    for (int k = 0; k < arr.length; ++k) {
+                        if (k == i) {
+                            arr2[k] = 0;
+                        } else {
+                            arr2[k] = (arr[k] & mask)
+                                    | ((arr[k] >> 1) & ~mask);
+                        }
+                    }
+                    if (match(arr2, n-1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
 }

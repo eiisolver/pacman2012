@@ -49,16 +49,21 @@ public class Heuristics {
 			}
 		}
 	}
+
 	private void setPowerPillScore() {
 		boolean existNonKilling = existNonKillingGhosts();
-		if ((10*b.nrPillsLeft)/b.nrPills > 6 || (existNonKilling && (10*b.nrPillsLeft)/ b.nrPills > 7)) {
-			// discourage eating power pills in the beginning and if there are still edible ghosts
-			powerPillScore = -2*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+		if ((10*b.nrPillsLeft)/b.nrPills > 4) {
+			// discourage eating power pills in the beginning
+			powerPillScore = -20000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+		} else if (existNonKilling && (10*b.nrPillsLeft)/ b.nrPills > 3) {
+			// discourage eating power pills if there are still edible ghosts
+			powerPillScore = -20000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 		} else {
-			powerPillScore = Constants.POWER_PILL*POINT_FACTOR;
+			powerPillScore = 0;
 		}
+		//System.out.println("power pill score: " + powerPillScore + ", nrPillsLeft = " + b.nrPillsLeft + "/" + b.nrPills + ", exist: " + existNonKilling);
 	}
-	
+
 	private boolean existNonKillingGhosts() {
 		for (MyGhost ghost : b.ghosts) {
 			if (!ghost.canKill()) {

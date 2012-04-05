@@ -26,7 +26,7 @@ import pacman.entries.ghosts.MyGhosts;
 import pacman.entries.pacman.MyPacMan;
 import pacman.game.Game;
 import pacman.game.GameView;
-
+import pacman.entries.ghostsv3.*;
 import static pacman.game.Constants.*;
 
 /**
@@ -63,8 +63,9 @@ public class Executor
 		///*
 		//run the game in asynchronous mode.
 		boolean visual=true;
-		//exec.runGame(new StarterPacMan(),new MyGhosts(),visual, 20);
-		exec.runGameTimed(new MyPacMan(),new MyGhosts(),visual);
+		//exec.runGameTimed(new MyPacMan(),new MyGhostsV3(),visual);
+		exec.runGameTimed(new MyPacMan(),new StarterGhosts(),visual);
+		
 		//exec.runGameTimed(new HumanController(new KeyBoardInput()),new MyGhosts(),visual);			
 		//*/
 		String fileName="replay.txt";

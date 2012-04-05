@@ -71,6 +71,15 @@ public class JunctionGraph {
 		return distToJunc1 + getGhostDistBetweenJunctions(junc1, lastMove, index2, moveFromIndex2);
 	}
 	
+	public Node find(int x, int y) {
+		for (Node n : nodes) {
+			if (n.x == x && n.y == y) {
+				return n;
+			}
+		}
+		return null;
+	}
+	
 	/**
 	 * Constructs the junction graph from the given maze.
 	 * @param maze
