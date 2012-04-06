@@ -54,7 +54,11 @@ public class Heuristics {
 		boolean existNonKilling = existNonKillingGhosts();
 		if ((10*b.nrPillsLeft)/b.nrPills > 4) {
 			// discourage eating power pills in the beginning
-			powerPillScore = -20000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			if (Search.pacmanEvaluation) {
+				powerPillScore = -20000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			} else {
+				powerPillScore = -2*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			}
 		} else if (existNonKilling && (10*b.nrPillsLeft)/ b.nrPills > 3) {
 			// discourage eating power pills if there are still edible ghosts
 			powerPillScore = -20000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;

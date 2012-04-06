@@ -69,9 +69,11 @@ public class PlyInfo {
 		if (movePacman) {
 			Node n = Search.nodes[Search.b.pacmanLocation];
 			nrPossibleMoves = 0;
+			int[] killerMoves = Search.pacmanKillerMoves[Search.b.pacmanLocation];
 			for (int e = 0; e < n.nrNeighbours; ++e) {
-				if (!Search.skipMoveTowardsGhost(n.neighbours[e])) {
-					pacmanMoves[nrPossibleMoves] = e;
+				int index = killerMoves[e];
+				if (!Search.skipMoveTowardsGhost(n.neighbours[index])) {
+					pacmanMoves[nrPossibleMoves] = index;
 					++nrPossibleMoves;
 				} else if (Search.log)Search.log("Skip move towards ghost: " + n.neighbourMoves[e]);
 			}
@@ -83,8 +85,9 @@ public class PlyInfo {
 				nrPossibleMoves = 0;
 				// no moves were skipped due to moving to ghost; do move generation once more; skip opposite move
 				for (int e = 0; e < n.nrNeighbours; ++e) {
-					if (n.neighbourMoves[e] != Search.b.pacmanLastMove.opposite()) {
-						pacmanMoves[nrPossibleMoves] = e;
+					int index = killerMoves[e];
+					if (n.neighbourMoves[index] != Search.b.pacmanLastMove.opposite()) {
+						pacmanMoves[nrPossibleMoves] = index;
 						++nrPossibleMoves;
 					}
 				}

@@ -168,45 +168,14 @@ public class JunctionGraph {
 		}
 	}
 	
-	/*private void calcPacmanDist() {
-		int N = junctionNodes.length;
-		pacmanDist = new int[N][N];
-		for (int i = 0; i < N; ++i) {
-			for (int j = 0; j < N; ++j) {
-				pacmanDist[i][j] = 100000;
-			}
-		}
-		for (int i = 0; i < N; ++i) {
-			pacmanDist[i][i] = 0;
-			for (int e = 0; e < junctionNodes[i].nrEdges; ++e) {
-				BigEdge edge = junctionNodes[i].edges[e];
-				if (edge.endpoints[0] != edge.endpoints[1]) {
-					int j = edge.endpoints[0].junctionIndex;
-					if (i == j) {
-						j = edge.endpoints[1].junctionIndex;
-					}
-					if (edge.length < pacmanDist[i][j]) {
-						pacmanDist[i][j] = edge.length;
-						pacmanDist[j][i] = pacmanDist[i][j];
-					}
-				}
-			}
-		}
-		for (int i = 0; i < N; ++i) {
-			for (int j = 0; j < N; ++j) {
-				for (int k = 0; k < N; ++k) {
-					int sum = pacmanDist[i][j] + pacmanDist[j][k];
-					if (sum < pacmanDist[i][k]) {
-						pacmanDist[i][k] = sum;
-					}
-				}
-			}
-		}
-	}*/
+	private void print(String msg) {
+		System.out.println(msg + ": " + ghostDist[MOVE.UP.ordinal()][2][MOVE.UP.ordinal()][2]);
+	}
 	
 	private void calcGhostDist() {
 		int N = junctionNodes.length;
 		ghostDist = new int[5][N][5][N];
+		// initialize all distances with large value
 		for (int m = 0; m < 4; ++m) {
 			for (int i = 0; i < N; ++i) {
 				for (int m2 = 0; m2 < 4; ++m2) {
@@ -214,6 +183,7 @@ public class JunctionGraph {
 				}
 			}
 		}
+		print("after init");
 		// set 0-distance between junction and itself 
 		for (int i = 0; i < N; ++i) {
 			for (MOVE m1 : MOVE.values()) {
@@ -224,32 +194,28 @@ public class JunctionGraph {
 				}
 			}
 		}
-		// calc distances between neighbour junctions
-		/*for (BigEdge edge : edges) {
-			Node start = edge.endpoints[0];
-			Node end = edge.endpoints[1];
-			int secondNodeIndex = edge.length == 1 ? end.index : edge.internalNodes[1].index;
-			int secondLastNodeIndex = edge.length == 1 ? start.index : edge.internalNodes[edge.internalNodes.length-1].index;
-			for (int i = 0; i < start.nrNeighbours; ++i) {
-				if (start.neighbours[i] != secondNodeIndex) {
-					MOVE moveToStart = start.neighbourMoves[i].opposite();
-					for (int j = 0; j < end.nrNeighbours; ++j) {
-						if (end.neighbours[j] != secondLastNodeIndex) {
-							int m1 = moveToStart.ordinal();
-							int m2 = end.neighbourMoves[j].ordinal();
-							int[] arr = ghostDist[m1][start.junctionIndex][m2];
-							if (arr[end.junctionIndex] > edge.length) {
-								arr[end.junctionIndex] = edge.length;
-								ghostDist[m2][end.junctionIndex][m1][start.junctionIndex] = edge.length;
-							}
+		print("0-dist");
+		// set all distances where ghost shortest path == real shortest path
+		for (int i = 0; i < N; ++i) {
+			Node n1 = junctionNodes[i];
+			for (int j = i; j < N; ++j) {
+				Node n2 = junctionNodes[j];
+				int shortestDist = game.getShortestPathDistance(n1.index, n2.index);
+				for (int e1 = 0; e1 < n1.nrNeighbours; ++e1) {
+					for (int e2 = 0; e2 < n2.nrNeighbours; ++e2) {
+						int neighbourDist = game.getShortestPathDistance(n1.neighbours[e1], n2.neighbours[e2]);
+						if (neighbourDist == shortestDist - 2) {
+							updateDist(n1, n1.neighbourMoves[e1], n2, n2.neighbourMoves[e2], shortestDist);
 						}
 					}
 				}
 			}
-		}*/
+		}
+		print("shortdist");
+		// calculate ghost distances that are other than shortest dist
 		boolean[] visited = new boolean[junctionNodes.length];
 		long startTime = System.currentTimeMillis();
-		for (int maxDepth = 1; maxDepth < 10 && System.currentTimeMillis() - startTime < 100; ++maxDepth) {
+		for (int maxDepth = 1; maxDepth < 20 && System.currentTimeMillis() - startTime < 100; ++maxDepth) {
 			System.out.println("walk, maxDepth = " + maxDepth);
 			nrVisit = 0;
 			for (int i = 0; i < junctionNodes.length; ++i) {
@@ -261,10 +227,11 @@ public class JunctionGraph {
 					MOVE startMove = edge.getFirstMove(start);
 					Node nextNode = edge.getOtherJunction(start);
 					MOVE nextLastMove = edge.getFirstMove(nextNode).opposite();
-					walk(visited, start, startMove, nextNode, nextLastMove, edge.length, maxDepth, 120);
+					walk(visited, start, startMove, nextNode, nextLastMove, edge.length, maxDepth, 180);
 				}
 			}
 			System.out.println("visits = " + nrVisit + ", time: " + (System.currentTimeMillis()-startTime));
+			print("walk");
 		}
 	}
 	
@@ -273,28 +240,7 @@ public class JunctionGraph {
 	private void walk(boolean[] visited, Node start, MOVE startMove, Node end, MOVE lastMove, int currDist, int depth, int maxDist) {
 		++nrVisit;
 		// update distances
-		boolean improvedDistance = false;
-		for (int i = 0; i < start.nrNeighbours; ++i) {
-			if (start.neighbourMoves[i] != startMove) {
-				MOVE moveToStart = start.neighbourMoves[i].opposite();
-				for (int j = 0; j < end.nrNeighbours; ++j) {
-					if (end.neighbourMoves[j] != lastMove.opposite()) {
-						int m1 = moveToStart.ordinal();
-						int m2 = end.neighbourMoves[j].ordinal();
-						int[] arr = ghostDist[m1][start.junctionIndex][m2];
-						if (currDist < arr[end.junctionIndex]) {
-							arr[end.junctionIndex] = currDist;
-							ghostDist[m2][end.junctionIndex][m1][start.junctionIndex] = currDist;
-							improvedDistance = true;
-							if (currDist < ghostDist[MOVE.NEUTRAL.ordinal()][start.junctionIndex][m2][end.junctionIndex]) {
-								ghostDist[MOVE.NEUTRAL.ordinal()][start.junctionIndex][m2][end.junctionIndex] = currDist;
-								ghostDist[m2][end.junctionIndex][MOVE.NEUTRAL.ordinal()][start.junctionIndex] = currDist;
-							}
-						}
-					}
-				}
-			}
-		}
+		boolean improvedDistance = updateDist(start, startMove, end, lastMove, currDist);
 		//if (visited[end.junctionIndex] && !improvedDistance) {
 		if (maxDist <= 0) {
 			return;
@@ -303,11 +249,56 @@ public class JunctionGraph {
 		if (depth > 0) {
 			for (int i = 0; i < end.nrEdges; ++i) {
 				BigEdge edge = end.edges[i];
-				Node nextNode = edge.getOtherJunction(end);
-				MOVE nextLastMove = edge.getFirstMove(nextNode).opposite();
-				walk(visited, start, startMove, nextNode, nextLastMove, currDist + edge.length, depth - 1, maxDist - edge.length);
+				MOVE firstMove = edge.getFirstMove(end);
+				if (firstMove != lastMove.opposite()) {
+					Node nextNode = edge.getOtherJunction(end);
+					MOVE nextLastMove = edge.getFirstMove(nextNode).opposite();
+					walk(visited, start, startMove, nextNode, nextLastMove, currDist + edge.length, depth - 1, maxDist - edge.length);
+				}
 			}
 		}
+	}
+	
+	/**
+	 * Adds distance info to ghostDist
+	 * @return true if ghostDist was really updated
+	 */
+	private boolean updateDist(Node start, MOVE startMove, Node end, MOVE lastMove, int dist) {
+		boolean improvedDistance = false;
+		for (int i = 0; i < start.nrNeighbours; ++i) {
+			if (start.neighbourMoves[i] != startMove) {
+				MOVE moveToStart = start.neighbourMoves[i].opposite();
+				int m1 = moveToStart.ordinal();
+				for (int j = 0; j < end.nrNeighbours; ++j) {
+					MOVE firstMove = end.neighbourMoves[j];
+					if (firstMove != lastMove.opposite()) {
+						int m2 = firstMove.ordinal();
+						int[] arr = ghostDist[m1][start.junctionIndex][m2];
+						if (dist < arr[end.junctionIndex]) {
+							if (end.junctionIndex == 2 && start.junctionIndex == 2) {
+								System.out.println("yes");
+							}
+							setDist(start, moveToStart, end, firstMove, dist);
+							arr[end.junctionIndex] = dist;
+							setDist(end, firstMove.opposite(), start, moveToStart.opposite(), dist);
+							improvedDistance = true;
+							if (dist < ghostDist[MOVE.NEUTRAL.ordinal()][start.junctionIndex][m2][end.junctionIndex]) {
+								setDist(start, MOVE.NEUTRAL, end, firstMove, dist);
+								setDist(end, firstMove.opposite(), start, MOVE.NEUTRAL, dist);
+							}
+						}
+					}
+				}
+			}
+		}
+		return improvedDistance;
+	}
+	
+	private void setDist(Node n1, MOVE lastMove, Node n2, MOVE firstMove, int dist) {
+		if (n1.junctionIndex == 1 && n2.junctionIndex == 2 && lastMove == MOVE.UP && firstMove == MOVE.UP) {
+			System.out.println("setDist, new dist: " + dist);
+		}
+		ghostDist[lastMove.ordinal()][n1.junctionIndex][firstMove.ordinal()][n2.junctionIndex] = dist;
 	}
 	
 	public void print(Game game, Board b) {
@@ -336,7 +327,7 @@ public class JunctionGraph {
 			}
 			if (s == null) {
 				s = ".";
-				if (n.index == game.getPacmanCurrentNodeIndex()) {
+				if (n.index == b.pacmanLocation) {
 					s = "P";
 				} else if (b.containsPowerPill[i]) {
 					s = "X";
