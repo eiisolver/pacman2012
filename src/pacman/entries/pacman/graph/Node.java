@@ -32,6 +32,8 @@ public class Node {
 	public BigEdge edge;
 	/** distToJunction[0] is pacman distance to BigEdge.endpoints[0] (only applicable for internal nodes) */
 	public int[] distToJunction;
+	/** Pacman distance to closest junction */
+	public int distToClosestJunction;
 	/** Index of this node on edge.internalNodes */
 	public int edgeIndex;
 	/** 

@@ -27,12 +27,22 @@ public class Heuristics {
 		return Constants.PILL*POINT_FACTOR;
 	}
 	
-	public int getPowerPillScore(int location) {
+	public int getPowerPillScore() {
 		return powerPillScore;
 	}
 	
 	public int getNodeScore(int location) {
 		return nodeScore[location];
+	}
+	
+	public boolean hasManyLivesLeft() {
+		return game.getPacmanNumberOfLivesRemaining() > 2;
+	}
+	
+	public boolean assumeWeakPacman() {
+		boolean result = game.getCurrentLevel() == 0 && b.nrPowerPillsOnBoard > 2 
+				&& (2000 - 400*game.getPacmanNumberOfLivesRemaining()) > game.getTotalTime();
+		return result;
 	}
 	
 	private void setNodeScore() {
@@ -52,16 +62,23 @@ public class Heuristics {
 
 	private void setPowerPillScore() {
 		boolean existNonKilling = existNonKillingGhosts();
-		if ((10*b.nrPillsLeft)/b.nrPills > 4) {
+		if ((100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard && game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
-			powerPillScore = -20000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
-		} else if (existNonKilling && (10*b.nrPillsLeft)/ b.nrPills > 3) {
+			if (Search.pacmanEvaluation) {
+				powerPillScore = -12000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			} else {
+				powerPillScore = -2*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			}
+		} else if (existNonKilling && (100*b.nrPillsOnBoard)/ b.nrPills > 10) {
 			// discourage eating power pills if there are still edible ghosts
-			powerPillScore = -20000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+			powerPillScore = -15000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+		} else if (game.getCurrentLevelTime() > 2850 - 100*b.nrPowerPillsOnBoard) {
+			powerPillScore = Constants.GHOST_EAT_SCORE;
 		} else {
-			powerPillScore = 0;
+			powerPillScore = -500;
 		}
-		//System.out.println("power pill score: " + powerPillScore + ", nrPillsLeft = " + b.nrPillsLeft + "/" + b.nrPills + ", exist: " + existNonKilling);
+		//System.out.println("power pill score: " + powerPillScore + ", nrPillsOnboard = " + b.nrPillsOnBoard + "/" + b.nrPills
+		//		+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
 	}
 
 	private boolean existNonKillingGhosts() {

@@ -4,11 +4,15 @@ import static pacman.game.Constants.COMMON_LAIR_TIME;
 import static pacman.game.Constants.EDIBLE_TIME;
 import static pacman.game.Constants.EDIBLE_TIME_REDUCTION;
 import static pacman.game.Constants.LAIR_REDUCTION;
-import pacman.game.Constants;
+
+import java.util.Random;
+
 import pacman.game.Game;
 import pacman.game.Constants.*;
 
 public class Board {
+	private static long[] pacmanHash = new long[4000];
+	public static long[] pillHash = new long[pacmanHash.length];
 	public JunctionGraph graph;
 	public MyGhost[] ghosts;
 	public int pacmanLocation;
@@ -22,11 +26,19 @@ public class Board {
 	/** total nr of pills at start of this level */
 	public int nrPills;
 	/** number of pills left */
-	public int nrPowerPillsLeft;
-	public int nrPillsLeft;
+	public int nrPowerPillsOnBoard;
+	public int nrPillsOnBoard;
 	public int currentEdibleTime = 200;
 	public int currentLairTime = 200;
+	public long currentPillHash;
 
+	static {
+		Random rnd = Search.rand;
+		for (int i = 0; i < pacmanHash.length; ++i) {
+			pacmanHash[i] = rnd.nextLong();
+			pillHash[i] = rnd.nextLong();
+		}
+	}
 	public Board() {
 		ghosts = new MyGhost[GHOST.values().length];
 		for (int i = 0; i < ghosts.length; ++i) {
@@ -37,13 +49,13 @@ public class Board {
 	
 	public void update(Game game) {
 		nrPills = game.getPillIndices().length;
-		nrPillsLeft = 0;
+		nrPillsOnBoard = 0;
 		containsPill = new boolean[graph.nodes.length];
 		for (int index = 0; index < containsPill.length; ++index) {
 			int pillIndex = game.getPillIndex(index);
 			containsPill[index] = pillIndex >= 0 && game.isPillStillAvailable(pillIndex);
 			if (containsPill[index]) {
-				++nrPillsLeft;
+				++nrPillsOnBoard;
 			}
 		}
 		for (BigEdge edge : graph.edges) {
@@ -51,17 +63,24 @@ public class Board {
 		}
 		containsPowerPill = new boolean[graph.nodes.length];
 		nrPowerPills = 0;
-		nrPowerPillsLeft = 0;
+		nrPowerPillsOnBoard = 0;
 		for (int index = 0; index < containsPowerPill.length; ++index) {
 			int powerPillIndex = game.getPowerPillIndex(index);
 			containsPowerPill[index] = powerPillIndex >= 0 && game.isPowerPillStillAvailable(powerPillIndex);
 			if (containsPowerPill[index] && !graph.nodes[index].isJunction()) {
 				graph.nodes[index].edge.containsPowerPill = true;
-				++nrPowerPillsLeft;
+				++nrPowerPillsOnBoard;
 			}
 			if (powerPillIndex >= 0) {
 				powerPillLocation[nrPowerPills] = index;
 				++nrPowerPills;
+			}
+		}
+		// calculate pill hash
+		currentPillHash = 0;
+		for (int i = 0; i < graph.nodes.length; ++i) {
+			if (containsPowerPill[i] || containsPill[i]) {
+				currentPillHash ^= pillHash[i];
 			}
 		}
 		//game.getPillIndices().length;
@@ -83,9 +102,26 @@ public class Board {
 		for (int i = 0; i < ghosts.length; ++i) {
 			ghosts[i].copyFrom(src.ghosts[i]);
 		}
+		currentPillHash = src.currentPillHash;
 	}
 	
 	public void logBoard(Game game) {
 		graph.print(game, this);
+	}
+	
+	/**
+	 * Calculates a hash of the current game situation.
+	 * @return
+	 */
+	public long getHash(boolean movePacman) {
+		long hash = currentPillHash;
+		hash ^= pacmanHash[pacmanLocation];
+		for (int g = 0; g < ghosts.length; ++g) {
+			hash ^= ghosts[g].getHash();
+		}
+		if (movePacman) {
+			hash ^= 0xaaaaaaa;
+		}
+		return hash;
 	}
 }

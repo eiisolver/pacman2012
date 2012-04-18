@@ -460,10 +460,10 @@ public final class Game
 					if(--pacman.numberOfLivesRemaining<=0)
 					{
 						gameOver=true;
-						return;
 					}
 					else
 						_levelReset();
+					return;
 				}
 			}
 		}

@@ -21,7 +21,12 @@ public class TestStaticEval {
 		Log.println("Test " + fileName);
 		b.logBoard(game);
 		//Search.checkPacmanHealth();
+		long start = System.currentTimeMillis();
+		for (int i = 0; i < 1; ++i) {
 		Search.calcBorderEdges();
+		}
+		long duration = System.currentTimeMillis() - start;
+		System.out.println("duration: " + duration);
 	}
 	
 	public void runTests() throws Exception {
@@ -30,6 +35,8 @@ public class TestStaticEval {
 		runFile("test2.pos", true);
 		runFile("test3.pos", true);
 		runFile("test4.pos", true);
+		runFile("test5.pos", true);
+		runFile("test6.pos", true);
 		Log.flush();
 	}
 	public static void main(String[] args) throws Exception {

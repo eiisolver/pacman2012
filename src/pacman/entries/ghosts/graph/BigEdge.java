@@ -19,6 +19,8 @@ public class BigEdge {
 	boolean containsPowerPill;
 	/** firstMoveToOtherEnd[0] is first move from endpoints[0] if you go to endpoints[1] */
 	public MOVE[] firstMoveToOtherEnd = new MOVE[2];
+	/** unique id of this edge, can be used as array index in arrays containing all edges */
+	public int id;
 	
 	/**
 	 * Returns the other junction, given a junction that is an endpoint of this edge.

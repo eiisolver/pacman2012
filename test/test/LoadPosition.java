@@ -47,7 +47,7 @@ public class LoadPosition {
 				}
 			}
 		}
-		b.nrPowerPillsLeft = b.nrPowerPills;
+		b.nrPowerPillsOnBoard = b.nrPowerPills;
 	}
 	
 	public List<String> loadFile(File file) throws Exception {

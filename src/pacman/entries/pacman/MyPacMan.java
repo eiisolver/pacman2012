@@ -1,12 +1,14 @@
 package pacman.entries.pacman;
 
+import java.awt.Color;
 import java.io.File;
-
+import java.util.*;
 import pacman.controllers.Controller;
 import pacman.entries.pacman.graph.*;
 import pacman.game.Constants.DM;
 import pacman.game.Constants.MOVE;
 import pacman.game.Game;
+import pacman.game.GameView;
 
 /*
  * This is the class you need to modify for your entry. In particular, you need to
@@ -59,9 +61,9 @@ public class MyPacMan extends Controller<MOVE>
 			Log.println("Move: " + game.getCurrentLevelTime());
 			jgraph.print(game, board);
 		}
-		nodeToClosestPill = game.getNeighbour(game.getPacmanCurrentNodeIndex(), getNearestPillMove(game, timeDue));
-		System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
-		Search.searchMove(timeDue);
+		//nodeToClosestPill = game.getNeighbour(game.getPacmanCurrentNodeIndex(), getNearestPillMove(game, timeDue));
+		//System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
+		Search.searchMove(game, timeDue);
 		PlyInfo p = Search.plyInfo[0];
 		Log.println( "Searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
@@ -80,7 +82,19 @@ public class MyPacMan extends Controller<MOVE>
 		myMove = n.neighbourMoves[bestMove];
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time: " + (endTime - startTime) + " ms");
-		
+		if (true) {
+			List<Integer> visitedList = new ArrayList<Integer>();
+			for (int i = 0; i < jgraph.nodes.length; ++i) {
+				if (Search.pacmanVisited[i]) {
+					visitedList.add(i);
+				}
+			}
+			int[] nodeList = new int[visitedList.size()];
+			for (int i = 0; i < nodeList.length; ++i) {
+				nodeList[i] = visitedList.get(i);
+			}
+			GameView.addPoints(game,Color.GREEN, nodeList);
+		}
 		return myMove;
 	}
 	

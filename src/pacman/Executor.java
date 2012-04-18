@@ -2,9 +2,11 @@ package pacman;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -27,6 +29,7 @@ import pacman.entries.pacman.MyPacMan;
 import pacman.game.Game;
 import pacman.game.GameView;
 import pacman.entries.ghostsv3.*;
+import pacman.entries.ghostsv6.*;
 import static pacman.game.Constants.*;
 
 /**
@@ -64,8 +67,9 @@ public class Executor
 		//run the game in asynchronous mode.
 		boolean visual=true;
 		//exec.runGameTimed(new MyPacMan(),new MyGhostsV3(),visual);
-		exec.runGame(new StarterPacMan(),new MyGhosts(),visual, 40);
-		
+		//exec.runGame(new MyPacMan(),new MyGhostsV6(),visual, 40);
+		//exec.runGame(new MyPacMan(),new Legacy2TheReckoning(),visual, 40);
+		exec.runGame(new MyPacMan(),new MyGhostsV6(),visual, 40);
 		//exec.runGameTimed(new HumanController(new KeyBoardInput()),new MyGhosts(),visual);			
 		//*/
 		String fileName="replay.txt";
@@ -134,21 +138,30 @@ public class Executor
 	 */
 	public void runGame(Controller<MOVE> pacManController,Controller<EnumMap<GHOST,MOVE>> ghostController,boolean visual,int delay)
 	{
-		Game game=new Game(0);
+		try {
+			PrintStream out = new PrintStream("replay.txt");
+			Game game=new Game(0);
 
-		GameView gv=null;
-		
-		if(visual)
-			gv=new GameView(game).showGame();
-		
-		while(!game.gameOver())
-		{
-	        game.advanceGame(pacManController.getMove(game.copy(),-1),ghostController.getMove(game.copy(),System.currentTimeMillis()+Long.MAX_VALUE));
-	        
-	        try{Thread.sleep(delay);}catch(Exception e){}
-	        
-	        if(visual)
-	        	gv.repaint();
+			GameView gv=null;
+			
+			if(visual)
+				gv=new GameView(game).showGame();
+			
+			while(!game.gameOver())
+			{
+			    game.advanceGame(pacManController.getMove(game.copy(),-1),ghostController.getMove(game.copy(),System.currentTimeMillis()+Long.MAX_VALUE));
+			    
+			    try{Thread.sleep(delay);}catch(Exception e){}
+			    
+			    if(visual)
+			    	gv.repaint();
+			    out.println(game.getGameState());
+			    out.flush();
+			}
+			out.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	

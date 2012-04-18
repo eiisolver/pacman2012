@@ -28,6 +28,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 		if (log) {
 			Log.logFile = new File("ghosts.log");
 		}
+		Search.pacmanEvaluation = false;
 	}
 	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
@@ -59,7 +60,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 				Log.println("Move: " + game.getCurrentLevelTime());
 				jgraph.print(game, board);
 			}
-			Search.searchMove(timeDue);
+			Search.searchMove(game, timeDue);
 			Log.println( "Searched " + Search.nodesSearched 
 					+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 					+ ", value: " + p.bestValue);
@@ -67,12 +68,20 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 					+ ", Ghosts searched " + Search.nodesSearched 
 					+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 					+ ", value: " + p.bestValue);
+			if (p.bestValue > 20000) {
+				Log.println("I will win");
+				System.out.println("I will win");
+			}
 			int[] bestMove = Search.plyInfo[0].bestGhostMove;
 			for (int i = 0; i < bestMove.length; ++i) {
 				MyGhost ghost = board.ghosts[i];
 				if (game.doesGhostRequireAction(ghost.ghost)) {
 					Node n = jgraph.nodes[ghost.currentNodeIndex];
-					MOVE move = n.neighbourMoves[bestMove[i]];
+					int index = bestMove[i];
+					if (index < 0) {
+						index = 0;
+					}
+					MOVE move = n.neighbourMoves[index];
 					myMoves.put(ghost.ghost, move);
 				}
 			}

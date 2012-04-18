@@ -18,6 +18,7 @@ public class GhostDistTest {
 	Board b;
 
 	private void check(int nodeY, int nodeX, MOVE lastMove, int juncY, int juncX, MOVE firstMoveFromJunc, int expectedDist) {
+		System.out.println("check " + nodeY + ", " + nodeX);
 		Node n = b.graph.find(nodeX, nodeY);
 		Node junction = b.graph.find(juncX, juncY);
 		int ghostDist = b.graph.getGhostDistToJunction(n.index, lastMove, junction.index, firstMoveFromJunc);
@@ -32,12 +33,14 @@ public class GhostDistTest {
 		loader.loadPosition(b, game, new File(testDir, fileName));
 		Log.println("Test " + fileName);
 		b.logBoard(game);
-		check(20, 72, MOVE.UP, 16, 72, MOVE.UP, 4);
 	}
 	
 	public void runTests() throws Exception {
 		Log.logFile = new File("ghost_test.log");
 		runFile("dist1.pos");
+		check(20, 72, MOVE.UP, 16, 72, MOVE.UP, 4);
+		//runFile("test6.pos");
+		//check(92, 35, MOVE.RIGHT, 92, 12, MOVE.UP, 100);
 		Log.flush();
 	}
 	public static void main(String[] args) throws Exception {
