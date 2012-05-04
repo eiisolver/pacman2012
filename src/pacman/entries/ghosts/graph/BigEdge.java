@@ -79,4 +79,10 @@ public class BigEdge {
 			return length - 1 - n1.edgeIndex;
 		}
 	}
+	@Override
+	public String toString() {
+		return endpoints[0].toString() + "-" + endpoints[1].toString();
+	}
+	
+	
 }

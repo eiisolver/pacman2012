@@ -61,21 +61,33 @@ public class MyPacMan extends Controller<MOVE>
 			Log.println("Move: " + game.getCurrentLevelTime());
 			jgraph.print(game, board);
 		}
-		//nodeToClosestPill = game.getNeighbour(game.getPacmanCurrentNodeIndex(), getNearestPillMove(game, timeDue));
+		nodeToClosestPill = game.getNeighbour(game.getPacmanCurrentNodeIndex(), getNearestPillMove(game, timeDue));
 		//System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
+		Search.searchIterationFinished = new Runnable() {
+
+			@Override
+			public void run() {
+				Node n = jgraph.nodes[board.pacmanLocation];
+				lastMove = n.neighbourMoves[Search.plyInfo[0].bestPacmanMove];
+			}
+		};
 		Search.searchMove(game, timeDue);
 		PlyInfo p = Search.plyInfo[0];
 		Log.println( "Searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 				+ ", value: " + p.bestValue);
 		System.out.println("Move: " + game.getCurrentLevelTime() 
-				+ ", Pacman searched " + Search.nodesSearched 
+				+ " L" + game.getCurrentLevel() + ", Pacman searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 				+ ", value: " + p.bestValue);
 		if (p.bestValue < -20000) {
 			Log.println("I will loose");
+			System.out.println("I will loose");
 		} else if (p.bestValue > 20000) {
 			Log.println("I won");
+		} else if (p.nrSurvivingMoves == 1) {
+			Log.println("Only move");
+			System.out.println("Only move");
 		}
 		int bestMove = p.bestPacmanMove;
 		Node n = jgraph.nodes[board.pacmanLocation];
@@ -94,6 +106,9 @@ public class MyPacMan extends Controller<MOVE>
 				nodeList[i] = visitedList.get(i);
 			}
 			GameView.addPoints(game,Color.GREEN, nodeList);
+		}
+		if (myMove != lastMove) {
+			System.err.println("lastMove != myMove");
 		}
 		return myMove;
 	}

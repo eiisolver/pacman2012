@@ -70,7 +70,11 @@ public class TransposTable {
 		} else {
 			t.bestMove = 0;
 			for (int i = 0; i < p.bestGhostMove.length; ++i) {
-				t.bestMove += p.bestGhostMove[i] << (3 * i);
+				int move = p.bestGhostMove[i];
+				if (move < 0) {
+					move = 7;
+				}
+				t.bestMove += move << (3 * i);
 			}
 		}
 		short scoreKind;
@@ -120,10 +124,18 @@ public class TransposTable {
 			} else {
 				for (int g = 0; g < b.ghosts.length; ++g) {
 					p.bestGhostMove[g] = (t.bestMove >> (3 * g)) & 7;
+					if (p.bestGhostMove[g] == 7) {
+						p.bestGhostMove[g] = -1;
+					}
 				}
 			}
 			int kind = t.flags & 3;
 			boolean willDie =  Math.abs(t.value) >= 20000;
+			if (willDie) {
+				// death evaluations made with budget < 0 are not 100% reliable and will
+				// propagate upwards; we trust them only a limited time.
+				willDie = (t.budget >= 0 && t.budget >= p.budget - 20) || p.budget < 0;
+			}
 			if (t.budget >= p.budget || willDie) {
 				if (kind == REAL_VALUE
 						|| (kind == UPPER_BOUND && t.value <= p.alpha)

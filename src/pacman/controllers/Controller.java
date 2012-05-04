@@ -15,7 +15,7 @@ public abstract class Controller<T> implements Runnable
 	private boolean alive,wasSignalled,hasComputed;
 	private long timeDue;
 	private Game game;
-	private T lastMove;
+	protected T lastMove;	//this is now protected. You can set this directly in your getMove() method to save an immediate response.
 
 	/**
 	 * Instantiates a new controller. The constructor initialises the class variables.

@@ -25,6 +25,13 @@ public class Node {
 	public MOVE[] neighbourMoves;
 	/** x, y coordinates */
 	public int x, y;
+	/**
+	 * If onlyGhostMove[lastMove.ordinal()] == -1, then there are several ghost moves possible,
+	 * but otherwise onlyGhostMove[lastMove.ordinal()] contains the index in neighbours of the
+	 * only possible ghost move. 
+	 */
+	public int[] onlyGhostMove = new int[MOVE.values().length];
+	
 	//----------------------------------------------------------------------------
 	// APPLICABLE TO INTERNAL (NON-JUNCTION) NODES
 	//----------------------------------------------------------------------------
@@ -34,6 +41,8 @@ public class Node {
 	public int[] distToJunction;
 	/** Pacman distance to closest junction */
 	public int distToClosestJunction;
+	/** True if we can skip pacman turn-around moves at this place */
+	public boolean skipOpposite;
 	/** Index of this node on edge.internalNodes */
 	public int edgeIndex;
 	/** 
@@ -124,6 +133,21 @@ public class Node {
 	 */
 	public int distOnEdge(Node nodeOnEdge) {
 		return Math.abs(edgeIndex - nodeOnEdge.edgeIndex);
+	}
+	
+	/**
+	 * Sets onlyMove.
+	 */
+	public void calcOnlyMove() {
+		for (int i = 0; i < onlyGhostMove.length; ++i) {
+			onlyGhostMove[i] = -1;
+		}
+		if (!isJunction()) {
+			for (int i = 0; i < 2; ++i) {
+				MOVE lastMove = neighbourMoves[1-i].opposite();
+				onlyGhostMove[lastMove.ordinal()] = i;
+			}
+		}
 	}
 	
 	@Override

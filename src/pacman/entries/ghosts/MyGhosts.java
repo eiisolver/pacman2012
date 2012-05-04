@@ -21,6 +21,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 	private EnumMap<GHOST, MOVE> myMoves=new EnumMap<GHOST, MOVE>(GHOST.class);
 	JunctionGraph jgraph = new JunctionGraph();
 	Board board = new Board();
+	Game game;
 	int lastMazeIndex = -1;
 	public static final boolean log = Search.log;
 	
@@ -33,6 +34,14 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
 	{
+		this.game = game;
+		Search.searchIterationFinished = new Runnable() {
+
+			@Override
+			public void run() {
+				setBestMove(lastMove);
+			}
+		};
 		myMoves.clear();
 		// update junction graph when necessary
 		if (game.getMazeIndex() != lastMazeIndex) {
@@ -72,19 +81,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 				Log.println("I will win");
 				System.out.println("I will win");
 			}
-			int[] bestMove = Search.plyInfo[0].bestGhostMove;
-			for (int i = 0; i < bestMove.length; ++i) {
-				MyGhost ghost = board.ghosts[i];
-				if (game.doesGhostRequireAction(ghost.ghost)) {
-					Node n = jgraph.nodes[ghost.currentNodeIndex];
-					int index = bestMove[i];
-					if (index < 0) {
-						index = 0;
-					}
-					MOVE move = n.neighbourMoves[index];
-					myMoves.put(ghost.ghost, move);
-				}
-			}
+			setBestMove(myMoves);
 			long endTime = System.currentTimeMillis();
 			System.out.println("Time: " + (endTime - startTime) + " ms");
 			Log.println("Time: " + (endTime - startTime) + " ms");
@@ -111,5 +108,22 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			}
 		}*/
 		return myMoves;
+	}
+	
+	private void setBestMove(EnumMap<GHOST,MOVE> move) {
+		int[] bestMove = Search.plyInfo[0].bestGhostMove;
+		for (int i = 0; i < bestMove.length; ++i) {
+			MyGhost ghost = board.ghosts[i];
+			if (game.doesGhostRequireAction(ghost.ghost)) {
+				Node n = jgraph.nodes[ghost.currentNodeIndex];
+				int index = bestMove[i];
+				if (index < 0) {
+					index = 0;
+				}
+				MOVE m = n.neighbourMoves[index];
+				myMoves.put(ghost.ghost, m);
+			}
+		}
+
 	}
 }

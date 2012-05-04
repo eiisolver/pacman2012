@@ -22,7 +22,7 @@ public class TestStaticEval {
 		b.logBoard(game);
 		//Search.checkPacmanHealth();
 		long start = System.currentTimeMillis();
-		for (int i = 0; i < 1; ++i) {
+		for (int i = 0; i < 1000000; ++i) {
 		Search.calcBorderEdges();
 		}
 		long duration = System.currentTimeMillis() - start;

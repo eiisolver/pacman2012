@@ -108,7 +108,6 @@ public final class Game
 	
 	private void _levelReset()
 	{
-		totalTime++;
 		ghostEatMultiplier=1;
 			
 		_initGhosts();
@@ -303,6 +302,28 @@ public final class Game
 		_checkLevelState();							//check if level/game is over
 	}
 	
+	/**
+	 * This method is for specific purposes such as searching a tree in a specific manner. It has to be used cautiously as it might
+	 * create an unstable game state and may cause the game to crash.
+	 * 
+	 * @param feast Whether or not to enable feasting
+	 * @param updateLairTimes Whether or not to update the lair times
+	 * @param updateExtraLife Whether or not to update the extra life
+	 * @param updateTotalTime Whether or not to update the total time
+	 * @param updateLevelTime Whether or not to update the level time
+	 */
+	public void updateGame(boolean feast,boolean updateLairTimes,boolean updateExtraLife,boolean updateTotalTime,boolean updateLevelTime)
+	{
+		if(feast) 			_feast();				//ghosts eat pac-man or vice versa		
+		if(updateLairTimes) _updateLairTimes();
+		if(updateExtraLife) _updatePacManExtraLife();
+
+		if(updateTotalTime) totalTime++;
+		if(updateLevelTime) currentLevelTime++;
+		
+		_checkLevelState();							//check if level/game is over
+	}
+	
 	private void _updateLairTimes()
 	{
 		for(Ghost ghost : ghosts.values())
@@ -458,11 +479,10 @@ public final class Game
 				else													//ghost eats pac-man
 				{
 					if(--pacman.numberOfLivesRemaining<=0)
-					{
 						gameOver=true;
-					}
 					else
 						_levelReset();
+					
 					return;
 				}
 			}
@@ -853,8 +873,7 @@ public final class Game
 	public boolean doesGhostRequireAction(GHOST ghostType)
 	{
 		//inlcude neutral here for the unique case where the ghost just left the lair
-		return ((isJunction(ghosts.get(ghostType).currentNodeIndex) 
-				    || (ghosts.get(ghostType).lastMoveMade==MOVE.NEUTRAL) && ghosts.get(ghostType).currentNodeIndex==currentMaze.initialGhostNodeIndex) 
+		return ((isJunction(ghosts.get(ghostType).currentNodeIndex) || (ghosts.get(ghostType).lastMoveMade==MOVE.NEUTRAL) && ghosts.get(ghostType).currentNodeIndex==currentMaze.initialGhostNodeIndex) 
 				&& (ghosts.get(ghostType).edibleTime==0 || ghosts.get(ghostType).edibleTime%GHOST_SPEED_REDUCTION!=0));
 	}
 	
@@ -921,12 +940,14 @@ public final class Game
     * If there is no neighbour in that direction, the method returns -1.
     * 
     * @param nodeIndex The current node index
-	* @param lastModeMade The move to be made
+	* @param moveToBeMade The move to be made
 	* @return The node index of the node the move takes one to
     */
     public int getNeighbour(int nodeIndex, MOVE moveToBeMade)
     {
-    	return currentMaze.graph[nodeIndex].neighbourhood.get(moveToBeMade);
+    	Integer neighbour=currentMaze.graph[nodeIndex].neighbourhood.get(moveToBeMade);
+    	
+    	return neighbour==null ? -1 : neighbour;
     }
 	
 	/////////////////////////////////////////////////////////////////////////////

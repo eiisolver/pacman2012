@@ -48,10 +48,17 @@ public class PlyInfo {
 	boolean powerPillValue;
 	/** if a ghost was killed at this move */
 	boolean ghostKilled;
+	/** if move towards ghost was skipped at this move */
+	boolean moveTowardsGhostSkipped;
 	/** hash value of the board */
 	long hash;
 	/** Transpos entry for this position (null if not found) */
 	TransposTable.TransposInfo transpos;
+	/** Points to higher ply */
+	PlyInfo prev;
+	/** Targets that were backed up in this ply */
+	Target[] backedUpTargets = new Target[20];
+	int nrBackedUpTargets;
 	
 	// ############################################################################
 	// OUTPUT PARAMETERS
@@ -61,6 +68,8 @@ public class PlyInfo {
 	public int bestValue;
 	public int[] bestGhostMove;
 	public int bestPacmanMove;
+	/** number of moves that do not lead to death */
+	public int nrSurvivingMoves;
 
 	public PlyInfo() {
 		savedBoard = new Board();
@@ -77,10 +86,32 @@ public class PlyInfo {
 		if (movePacman) {
 			Node n = Search.nodes[Search.b.pacmanLocation];
 			nrPossibleMoves = 0;
+			moveTowardsGhostSkipped = false;
+			boolean checkSkipNeeded = true;
+			if (prev != null) {
+				PlyInfo prev2 = prev.prev;
+				if (prev2 != null) {
+					if (Search.nodes[prev2.savedBoard.pacmanLocation].edge == Search.nodes[Search.b.pacmanLocation].edge
+							&& Search.nodes[Search.b.pacmanLocation].edge != null) {
+						// pacman on same edge as last move
+						if (prev2.moveTowardsGhostSkipped) {
+							// last move we skipped towards ghost, so situation has not changed. 
+							// Just skip a move opposite to last move made
+							moveTowardsGhostSkipped = true;
+							checkSkipNeeded = false;
+							skipOpposite = true;
+						} else if (prev.nrPossibleMoves == 1) {
+							// last move we did not skip a move towards ghost, and the ghosts
+							// could only make 1 move. 
+							checkSkipNeeded = false;
+						}
+					}
+				}
+			}
 			int[] killerMoves = Search.pacmanKillerMoves[Search.b.pacmanLocation];
 			for (int e = 0; e < n.nrNeighbours; ++e) {
 				int index = killerMoves[e];
-				if (!Search.skipMoveTowardsGhost(n.neighbours[index])) {
+				if (!checkSkipNeeded || !Search.skipMoveTowardsGhost(n.neighbours[index])) {
 					pacmanMoves[nrPossibleMoves] = index;
 					++nrPossibleMoves;
 				} else if (Search.log)Search.log("Skip move towards ghost: " + n.neighbourMoves[e]);
@@ -100,19 +131,6 @@ public class PlyInfo {
 					}
 				}
 			}
-			// if we found a transposition table entry, put its move (which has been put in bestMove) first.
-			if (transpos != null) {
-				if (Search.log)Search.log("Try transpos move first: " + n.neighbourMoves[bestPacmanMove]);
-				int j;
-				for (j = 0; j < nrPossibleMoves && pacmanMoves[j] != bestPacmanMove; ++j) {
-				}
-				if (pacmanMoves[j] == bestPacmanMove) {
-					for (; j > 0; --j) {
-						pacmanMoves[j] = pacmanMoves[j-1];
-					}
-					pacmanMoves[0] = bestPacmanMove;
-				}
-			}
 			pacmanMoveIndex = -1;
 		} else {
 			nrPossibleMoves = 1;
@@ -123,36 +141,195 @@ public class PlyInfo {
 					nrGhostMoves[i] = 0;
 				} else {
 					Node n = Search.nodes[ghost.currentNodeIndex];
-					int[] killerMoves = Search.ghostKillerMoves[ghost.currentNodeIndex][ghost.lastMoveMade.ordinal()];
-					int moveIndex = 0;
-					for (int e = 0; e < n.nrNeighbours; ++e) {
-						int index = killerMoves[e];
-						if (n.neighbourMoves[index] != ghost.lastMoveMade.opposite()) {
-							ghostMoves[i][moveIndex] = index;
-							++moveIndex;
+					int move = n.onlyGhostMove[ghost.lastMoveMade.ordinal()];
+					if (move >= 0) {
+						ghostMoveIndex[i] = 0;
+						ghostMoves[i][0] = move;
+						nrGhostMoves[i] = 1;
+					} else {
+						int[] killerMoves = Search.ghostKillerMoves[ghost.currentNodeIndex][ghost.lastMoveMade.ordinal()];
+						int moveIndex = 0;
+						for (int e = 0; e < n.nrNeighbours; ++e) {
+							int index = killerMoves[e];
+							if (n.neighbourMoves[index] != ghost.lastMoveMade.opposite()) {
+								ghostMoves[i][moveIndex] = index;
+								++moveIndex;
+							}
+						}
+						ghostMoveIndex[i] = moveIndex-1;//i == 0 ? -1 : 0;
+						nrGhostMoves[i] = moveIndex;
+						nrPossibleMoves *= moveIndex;
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * If we found the current position in the transposition table, we want to
+	 * try the best move from that table first.
+	 * @param movePacman
+	 */
+	public void setTransposMoveFirst(boolean movePacman) {
+		// if we found a transposition table entry, put its move (which has been put in bestMove) first.
+		if (movePacman) {
+			if (Search.log)Search.log("Try transpos move first: " + Search.nodes[Search.b.pacmanLocation].neighbourMoves[bestPacmanMove]);
+			int j;
+			for (j = 0; j < nrPossibleMoves && pacmanMoves[j] != bestPacmanMove; ++j) {
+			}
+			if (pacmanMoves[j] == bestPacmanMove) {
+				for (; j > 0; --j) {
+					pacmanMoves[j] = pacmanMoves[j-1];
+				}
+				pacmanMoves[0] = bestPacmanMove;
+			}
+		} else {
+			for (int i = 0; i < ghostMoveIndex.length; ++i) {
+				if (nrGhostMoves[i] > 1) {
+					int j;
+					int[] moves = ghostMoves[i];
+					int bestMove = bestGhostMove[i];
+					if (Search.log) {
+						Node n = Search.nodes[Search.b.ghosts[i].currentNodeIndex];
+						Search.log("Try transpos move first: " + n + ", " + n.neighbourMoves[bestMove]);
+					}
+					for (j = 0; j < nrGhostMoves[i] && moves[j] != bestMove; ++j) {
+					}
+					if (moves[j] == bestMove) {
+						for (; j > 0; --j) {
+							moves[j] = moves[j-1];
+						}
+						moves[0] = bestMove;
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Used during extended search; filter away moves that do not lead to
+	 * targets or to pacman.
+	 */
+	public void filterTargetMoves() {
+		nrBackedUpTargets = 0;
+		for (int i = 0; i < ghostMoveIndex.length; ++i) {
+			if (nrGhostMoves[i] > 1) {
+				MyGhost ghost = Search.b.ghosts[i];
+				// update target information
+				boolean anyReached = false; // will be true if any of the targets has already been reached
+				Target reachedNowTarget = null; // not null if we just got to a new target
+				for (int t = 0; t < Search.nrGhostTargets[i]; ++t) {
+					Target target = Search.ghostTargets[i][t];
+					anyReached |= target.reached;
+					if (!target.reached && !target.abandoned) {
+						target.backup();
+						backedUpTargets[nrBackedUpTargets] = target;
+						++nrBackedUpTargets;
+						int currDist = Search.graph.getGhostDistToJunction(ghost.currentNodeIndex, ghost.lastMoveMade, 
+								target.ghostJunction.index, target.firstMoveFromGhost);
+						if (currDist == 0) {
+							// target reached!
+							target.reached = true;
+							reachedNowTarget = target;
+						} else if (currDist > target.currDist) {
+							target.abandoned = true;
+						}
+						target.currDist = currDist;
+					}
+				}
+				// go through all moves, filter away those that do not go to target or to pacman
+				int[] moves = ghostMoves[i];
+				for (int m = 0; m < nrGhostMoves[i]; ++m) {
+					int newIndex = Search.nodes[ghost.currentNodeIndex].neighbours[moves[m]];
+					MOVE newMove = Search.nodes[ghost.currentNodeIndex].neighbourMoves[moves[m]];
+					boolean keepMove = false;
+					int nrOpen = 0;
+					// while there are still open targets left, ghost should go to one of these
+					// targets
+					for (int t = 0; t < Search.nrGhostTargets[i] && !keepMove; ++t) {
+						Target target = Search.ghostTargets[i][t];
+						if (!target.reached && !target.abandoned) {
+							++nrOpen;
+							int newDist = Search.graph.getGhostDistToJunction(newIndex, newMove, 
+									target.ghostJunction.index, target.firstMoveFromGhost);
+							if (newDist < target.currDist) {
+								keepMove = true;
+							}
+						} else if (reachedNowTarget == target) {
+							// we just reached the target; now continue into the edge belonging to the target
+							keepMove = newMove == target.firstMoveFromGhost;
 						}
 					}
-					ghostMoveIndex[i] = i == 0 ? -1 : 0;
-					nrGhostMoves[i] = moveIndex;
-					nrPossibleMoves *= moveIndex;
-					// if we found a transposition table entry, put its move (which has been put in bestMove) first.
-					if (moveIndex > 1 && transpos != null) {
-						int j;
-						int[] moves = ghostMoves[i];
-						int bestMove = bestGhostMove[i];
-						if (Search.log)Search.log("Try transpos move first: " + n + ", " + n.neighbourMoves[bestMove]);
-						for (j = 0; j < moveIndex && moves[j] != bestMove; ++j) {
+					if (nrOpen == 0 || anyReached) {
+						// no targets left, or we have already reached a target
+						int currDist = Search.game.getShortestPathDistance(ghost.currentNodeIndex, Search.b.pacmanLocation); 
+						int newDist = Search.game.getShortestPathDistance(newIndex, Search.b.pacmanLocation); 
+						if (newDist < currDist) {
+							keepMove = true;
 						}
-						if (moves[j] == bestMove) {
-							for (; j > 0; --j) {
-								moves[j] = moves[j-1];
-							}
-							moves[0] = bestMove;
+					}
+					if (!keepMove) {
+						if (Search.log)Search.log("skipped move " + Search.nodes[ghost.currentNodeIndex] 
+								+ " " + Search.nodes[ghost.currentNodeIndex].neighbourMoves[moves[m]]);
+						for (int m2 = m+1; m2 < nrGhostMoves[i]; ++m2) {
+							moves[m2-1] = moves[m2];
+						}
+						if (nrGhostMoves[i] > 1) { // keep at least 1 move
+							--nrGhostMoves[i];
+							--m;
 						}
 					}
 				}
 			}
 		}
+		nrPossibleMoves = 1;
+		for (int i = 0; i < 4; ++i) {
+			if (nrGhostMoves[i] > 0) {
+				nrPossibleMoves *= nrGhostMoves[i];
+			}
+		}
+	}
+	
+	/**
+	 * Used during extended search: filters out pacman moves into dead ends
+	 * (border edges that will certainly be covered by ghosts)
+	 */
+	public void filterDeadEnds() {
+		if (Search.nrDeadEdges == 0) {
+			return;
+		}
+		Node n = Search.nodes[Search.b.pacmanLocation];
+		if (n.isJunction()) {
+			for (int m = 0; m < nrPossibleMoves; ++m) {
+				int index = pacmanMoves[m];
+				Node nextNode = Search.nodes[n.neighbours[index]];
+				BigEdge edge = nextNode.edge;
+				boolean keepMove = true;
+				for (int i = 0; i < Search.nrDeadEdges; ++i) {
+					if (Search.deadEdges[i] == edge) {
+						keepMove = false;
+						break;
+					}
+				}
+				if (!keepMove) {
+					if (Search.log)Search.log("skipped pacman move " + n + " " + n.neighbourMoves[index]);
+					for (int m2 = m+1; m2 < nrPossibleMoves; ++m2) {
+						pacmanMoves[m2-1] = pacmanMoves[m2];
+					}
+					if (nrPossibleMoves > 1) {
+						--nrPossibleMoves;
+						--m;
+					}
+				}
+			}
+		}
+	}
+	
+	public void restoreTargets() {
+		for (int t = 0; t < nrBackedUpTargets; ++t) {
+			backedUpTargets[t].restore();
+		}
+		nrBackedUpTargets = 0;
 	}
 	
 	/**
@@ -260,8 +437,8 @@ public class PlyInfo {
 				--b.nrPillsOnBoard;
 				moveScore += Search.heuristics.getPillScore(b.pacmanLocation);
 				b.currentPillHash ^= Board.pillHash[b.pacmanLocation];
+				b.containsPill[b.pacmanLocation] = false;
 			}
-			b.containsPill[b.pacmanLocation] = false;
 			powerPillValue = b.containsPowerPill[b.pacmanLocation];
 			if (powerPillValue) {
 				--b.nrPowerPillsOnBoard;
@@ -272,8 +449,8 @@ public class PlyInfo {
 					ghost.lastMoveMade = ghost.lastMoveMade.opposite();
 				}
 				b.currentPillHash ^= Board.pillHash[b.pacmanLocation];
+				b.containsPowerPill[b.pacmanLocation] = false;
 			}
-			b.containsPowerPill[b.pacmanLocation] = false;
 		}
 	}
 

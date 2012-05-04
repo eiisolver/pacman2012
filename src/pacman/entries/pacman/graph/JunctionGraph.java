@@ -20,6 +20,9 @@ public class JunctionGraph {
 	/** Contains all nodes in the current maze */
 	public Node[] nodes;
 	public List<BigEdge> edges = new ArrayList<BigEdge>();
+	private static int[] skipDistances = new int[] {
+		7//1, 7, 18, 32, 48, 70
+	};
 	
 	/**
 	 * Contains the ghost distance between any two junction nodes.
@@ -59,7 +62,7 @@ public class JunctionGraph {
 	 * Returns the ghost distance from a node (junction or not) to a junction
 	 * @param index1 index of source node(normal index, not junction index) of from node
 	 * @param lastMoveMade last move made that led to index1
-	 * @param index2 index of destination
+	 * @param index2 index of destination (normal index, not junction index)
 	 * @param moveFromIndex2 move to be made from index2
 	 * @return
 	 */
@@ -67,19 +70,19 @@ public class JunctionGraph {
 		return ghostDistToJunc[lastMoveMade.ordinal()][index1][moveFromIndex2.ordinal()][nodes[index2].junctionIndex];
 	}
 	
-	private int getGhostDistToJunctionInternal(int index1, MOVE lastMoveMade, int index2, MOVE moveFromIndex2) {
+	private int getGhostDistToJunctionInternal(int srcIndex, MOVE lastMoveMade, int destIndex, MOVE moveFromDest) {
 		int junc1;
 		MOVE lastMove;
 		int distToJunc1;
-		Node n1 = nodes[index1];
+		Node n1 = nodes[srcIndex];
 		if (n1.isJunction()) {
-			junc1 = index1;
+			junc1 = srcIndex;
 			lastMove = lastMoveMade;
 			distToJunc1 = 0;
 		} else if (lastMoveMade == MOVE.NEUTRAL) {
 			int bestDist = 10000;
 			for (int i = 0; i < n1.nrNeighbours; ++i) {
-				int dist = getGhostDistToJunctionInternal(index1, n1.neighbourMoves[i], index2, moveFromIndex2);
+				int dist = getGhostDistToJunctionInternal(srcIndex, n1.neighbourMoves[i], destIndex, moveFromDest);
 				if (dist < bestDist) {
 					bestDist = dist;
 				}
@@ -90,7 +93,7 @@ public class JunctionGraph {
 			lastMove = n1.getLastMoveToNextJunction(lastMoveMade);
 			distToJunc1 = n1.getDistToNextJunction(lastMoveMade);
 		}
-		return distToJunc1 + getGhostDistBetweenJunctions(junc1, lastMove, index2, moveFromIndex2);
+		return distToJunc1 + getGhostDistBetweenJunctions(junc1, lastMove, destIndex, moveFromDest);
 	}
 	
 	public Node find(int x, int y) {
@@ -136,6 +139,10 @@ public class JunctionGraph {
 			for (MOVE move : game.getPossibleMoves(n.index)) {
 				addEdge(n, move);
 			}
+		}
+		// set onlyGhostMove
+		for (int i = 0; i < nodes.length; ++i) {
+			nodes[i].calcOnlyMove();
 		}
 		calcGhostDist();
 		long now = System.currentTimeMillis();
@@ -188,6 +195,16 @@ public class JunctionGraph {
 			node.distToJunction[0] = i+1;
 			node.distToJunction[1] = edge.internalNodes.length - i;
 			node.distToClosestJunction = Math.min(node.distToJunction[0], node.distToJunction[1]);
+			node.skipOpposite = true;
+			if (node.distToClosestJunction == edge.length/2 || node.distToClosestJunction == 1) {
+				node.skipOpposite = false;
+			} else {
+				for (int s = 0; s < skipDistances.length; ++s) {
+					if (skipDistances[s] == node.distToClosestJunction && skipDistances[s] < edge.length/2 - 4) {
+						node.skipOpposite = false;
+					}
+				}
+			}
 			node.edgeIndex = i;
 		}
 	}

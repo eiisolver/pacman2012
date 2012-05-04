@@ -10,6 +10,7 @@ public class Heuristics {
 	/** Power pill score */
 	private int powerPillScore;
 	private int[] nodeScore;
+	private boolean weakOpponent;
 	
 	/**
 	 * Update heuristic parameters at beginning of a new move.
@@ -19,6 +20,7 @@ public class Heuristics {
 		this.b = board;
 		graph = b.graph;
 		nodeScore = new int[board.graph.nodes.length];
+		determineWeakOpponent();
 		setPowerPillScore();
 		setNodeScore();
 	}
@@ -39,12 +41,24 @@ public class Heuristics {
 		return game.getPacmanNumberOfLivesRemaining() > 2;
 	}
 	
-	public boolean assumeWeakPacman() {
-		boolean result = game.getCurrentLevel() == 0 && b.nrPowerPillsOnBoard > 2 
-				&& (2000 - 400*game.getPacmanNumberOfLivesRemaining()) > game.getTotalTime();
-		return result;
+	/**
+	 * Returns true if we think the opponent is weak, and allows
+	 * for more aggressive play.
+	 * @return
+	 */
+	public boolean isWeakOpponent() {
+		return weakOpponent;
 	}
 	
+	private void determineWeakOpponent() {
+		if (!Search.pacmanEvaluation) {
+			weakOpponent = game.getCurrentLevel() == 0 /*&& b.nrPowerPillsOnBoard >= 1 
+					&& (2300 - 400*game.getPacmanNumberOfLivesRemaining()) > game.getTotalTime()*/;
+		} else {
+			weakOpponent = game.getCurrentLevel() > 0 && hasManyLivesLeft();
+		}
+	}
+
 	private void setNodeScore() {
 		if (powerPillScore < 0) {
 			// give negative node scores for nodes on
@@ -61,24 +75,44 @@ public class Heuristics {
 	}
 
 	private void setPowerPillScore() {
+		if (isWeakOpponent()) {
+			if (!Search.pacmanEvaluation) {
+				powerPillScore = Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+				return;
+			}
+		}
 		boolean existNonKilling = existNonKillingGhosts();
-		if ((100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard && game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
+		int weakScore = 0;
+		if (isWeakOpponent()) {
+			if (game.getCurrentLevel() < 8) {
+				weakScore = -4*Constants.GHOST_EAT_SCORE*POINT_FACTOR/2;
+			} else {
+				weakScore = -((20 - game.getCurrentLevel())*Constants.GHOST_EAT_SCORE*POINT_FACTOR)/8;
+			}
+		}
+		int factor = isWeakOpponent() ? 300 : 100;
+		int leftNearEnd = game.getCurrentLevelTime() - 2850 + factor*b.nrPowerPillsOnBoard;
+		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
 			if (Search.pacmanEvaluation) {
-				powerPillScore = -12000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+				if (isWeakOpponent()) {
+					powerPillScore = weakScore;
+				} else {
+					powerPillScore = -12000; //-10*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+				}
 			} else {
 				powerPillScore = -2*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 			}
-		} else if (existNonKilling && (100*b.nrPillsOnBoard)/ b.nrPills > 10) {
+		} else if (existNonKilling) {
 			// discourage eating power pills if there are still edible ghosts
 			powerPillScore = -15000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
-		} else if (game.getCurrentLevelTime() > 2850 - 100*b.nrPowerPillsOnBoard) {
-			powerPillScore = Constants.GHOST_EAT_SCORE;
+		} else if (leftNearEnd > 0) {
+			powerPillScore = Constants.GHOST_EAT_SCORE + leftNearEnd;
 		} else {
-			powerPillScore = -500;
+			powerPillScore = isWeakOpponent() ? weakScore : -500;
 		}
-		//System.out.println("power pill score: " + powerPillScore + ", nrPillsOnboard = " + b.nrPillsOnBoard + "/" + b.nrPills
-		//		+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
+		System.out.println("power pill score: " + powerPillScore /*+ ", nrPillsOnboard = " + b.nrPillsOnBoard + "/" + b.nrPills*/
+				+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
 	}
 
 	private boolean existNonKillingGhosts() {

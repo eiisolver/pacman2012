@@ -17,6 +17,8 @@ public class Viewer {
 	private boolean paused = false;
 	private int currMove;
 	ArrayList<String> timeSteps;
+	private long delay = 40;
+	GameView gv=null;
 
 	private void setMoveNr(int moveNr) {
 		currMove = moveNr;
@@ -25,6 +27,7 @@ public class Viewer {
 		} else if (currMove >= timeSteps.size()) {
 			currMove = timeSteps.size() - 1;
 		}
+		gv.repaint();
 	}
 	
 	private char getNrLives(int moveNr) {
@@ -51,7 +54,6 @@ public class Viewer {
 		
 		Game game=new Game(0);
 		
-		GameView gv=null;
 		
 		if(visual)
 			gv=new GameView(game).showGame();
@@ -71,9 +73,15 @@ public class Viewer {
 					for (; currMove <timeSteps.size()-1 && getLevel(currMove) == currLevel; ++currMove) {
 					}
 				} else if (c == 'v') {
+					if (currMove <timeSteps.size()-1) {
+						++currMove;
+					}
 					char currNrLives = getNrLives(currMove);
 					for (; currMove <timeSteps.size()-1 && getNrLives(currMove) == currNrLives; ++currMove) {
 					}
+					--currMove;
+				} else if (c >= '0' && c <= '9') {
+					delay = 95 - (c-'0')*10;
 				} else {
 			    	switch(event.getKeyCode()) {
 				    	case KeyEvent.VK_UP: 	
@@ -110,13 +118,13 @@ public class Viewer {
 			}
 			
 		});
-		for(currMove=0;currMove<timeSteps.size();)
+		for(currMove=0;;)
 		{		
 			game.setGameState(timeSteps.get(currMove));
 
 			try
 			{
-				Thread.sleep(DELAY);
+				Thread.sleep(delay);
 			}
 			catch(InterruptedException e)
 			{
@@ -124,7 +132,7 @@ public class Viewer {
 			}
 	        if(visual)
 	        	gv.repaint();
-			if (!paused) {
+			if (!paused && currMove<timeSteps.size()-1) {
 				++currMove;
 			}
 		}
@@ -157,6 +165,7 @@ public class Viewer {
 	}
     
     public static void main(String[] args) {
+    	//new Viewer().replayGame("games/236790.txt", true);
     	new Viewer().replayGame("replay.txt", true);
     }
 
