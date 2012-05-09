@@ -30,6 +30,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			Log.logFile = new File("ghosts.log");
 		}
 		Search.pacmanEvaluation = false;
+		OpeningBook.init();
 	}
 	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
@@ -69,19 +70,24 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 				Log.println("Move: " + game.getCurrentLevelTime());
 				jgraph.print(game, board);
 			}
-			Search.searchMove(game, timeDue);
-			Log.println( "Searched " + Search.nodesSearched 
-					+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
-					+ ", value: " + p.bestValue);
-			System.out.println("Move: " + game.getCurrentLevelTime() 
-					+ ", Ghosts searched " + Search.nodesSearched 
-					+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
-					+ ", value: " + p.bestValue);
-			if (p.bestValue > 20000) {
-				Log.println("I will win");
-				System.out.println("I will win");
+			if (OpeningBook.findPosition(game, myMoves)) {
+				System.out.println("Found in opening book");
+			} else {
+				Search.searchMove(game, timeDue);
+				Log.println( "Searched " + Search.nodesSearched 
+						+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
+						+ ", value: " + p.bestValue);
+				System.out.println("Move: " + game.getCurrentLevelTime() 
+						+ ", Ghosts searched " + Search.nodesSearched 
+						+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
+						+ ", value: " + p.bestValue);
+				if (p.bestValue > 20000) {
+					Log.println("I will win");
+					System.out.println("I will win");
+				}
+				printBestMove();
+				setBestMove(myMoves);
 			}
-			setBestMove(myMoves);
 			long endTime = System.currentTimeMillis();
 			System.out.println("Time: " + (endTime - startTime) + " ms");
 			Log.println("Time: " + (endTime - startTime) + " ms");
@@ -124,6 +130,20 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 				myMoves.put(ghost.ghost, m);
 			}
 		}
-
+	}
+	private void printBestMove() {
+		int[] bestMove = Search.plyInfo[0].bestGhostMove;
+		for (int i = 0; i < bestMove.length; ++i) {
+			MyGhost ghost = board.ghosts[i];
+			if (game.doesGhostRequireAction(ghost.ghost)) {
+				Node n = jgraph.nodes[ghost.currentNodeIndex];
+				int index = bestMove[i];
+				if (index < 0) {
+					index = 0;
+				}
+				MOVE m = n.neighbourMoves[index];
+				System.out.println("Move ghost " + n + " " + m);
+			}
+		}
 	}
 }

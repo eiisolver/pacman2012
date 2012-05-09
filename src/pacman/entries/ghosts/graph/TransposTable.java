@@ -134,7 +134,7 @@ public class TransposTable {
 			if (willDie) {
 				// death evaluations made with budget < 0 are not 100% reliable and will
 				// propagate upwards; we trust them only a limited time.
-				willDie = (t.budget >= 0 && t.budget >= p.budget - 20) || p.budget < 0;
+				willDie = t.budget >= p.budget - 20 && (t.budget >= 0 == p.budget >= 0);
 			}
 			if (t.budget >= p.budget || willDie) {
 				if (kind == REAL_VALUE

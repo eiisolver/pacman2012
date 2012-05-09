@@ -114,7 +114,7 @@ public class PlyInfo {
 				if (!checkSkipNeeded || !Search.skipMoveTowardsGhost(n.neighbours[index])) {
 					pacmanMoves[nrPossibleMoves] = index;
 					++nrPossibleMoves;
-				} else if (Search.log)Search.log("Skip move towards ghost: " + n.neighbourMoves[e]);
+				} else if (Search.log)Search.log("Skip move towards ghost: " + n.neighbourMoves[index]);
 			}
 			if (nrPossibleMoves == 0) {
 				// all moves are towards a ghost; just pick a random one

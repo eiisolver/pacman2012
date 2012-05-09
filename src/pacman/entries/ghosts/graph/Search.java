@@ -58,13 +58,17 @@ public class Search {
 	public static Runnable searchIterationFinished;
 	private static PlyInfo backup = new PlyInfo();
 	/** Targets assigned to ghosts during extended search */
-	public static Target[][] ghostTargets = new Target[4][6];
+	public static Target[][] ghostTargets = new Target[4][7];
 	/** Contains for every ghost the number of assigned targets during extended search (0 means: follow pacman) */
 	public static int[] nrGhostTargets = new int[4];
 	/** Contains during extended search edges that are closed; pacman does not need to walk into these edges */
 	public static BigEdge[] deadEdges = new BigEdge[10];
 	public static int nrDeadEdges;
 	public static int extendedSearchDepth = -1;
+	private static BorderEdge[] path1 = new BorderEdge[10];
+	private static int path1Length = 0;
+	private static BorderEdge[] path2 = new BorderEdge[10];
+	private static int path2Length = 0;
 
 
 	static {
@@ -144,12 +148,13 @@ public class Search {
 					backup.copySearchResult(p);
 					haveBackup = true;
 				}
+				searchIterationFinished.run();
 			}
 			emergencyStopTime = timeDue - 7; // now set the real emergency stop time, with a little slack.
 			long timeSpent = System.currentTimeMillis() - startTime;
 			stop = Math.abs(p.bestValue) >= PACMAN_WILL_DIE
 					|| startTime + timeSpent >= normalStopTime
-					|| log
+					//|| log
 					;
 			// reduce max time if everything looks ok
 		    if (!stop && pacmanEvaluation && game.getCurrentLevel() > 1) {
@@ -175,7 +180,6 @@ public class Search {
 			p.copySearchResult(backup);
 			System.out.println("I will loose, select best move from backup");
 		}
-		searchIterationFinished.run();
 	}
 
 	/**
@@ -729,7 +733,7 @@ public class Search {
 			}
 		}
 		calcBorderEdges();
-		if (!staticEval2.canReachPowerPill && staticEval2.nrBorders <= 4 
+		if (!staticEval2.canReachPowerPill && staticEval2.nrBorders <= 6 
 				&& staticEval2.nrPacmanNodes <= 4 && staticEval2.match()) {
 			// ghosts can invade pacmans territory via all edges
 			if (staticEval2.hasCircles) {
@@ -1119,22 +1123,24 @@ public class Search {
 		for (int i = 0; i < ghostTargets.length; ++i) {
 			if (nrGhostTargets[i] == 1) {
 				Target target = ghostTargets[i][0];
-				if (log)log("dead end: " + target.edge);
-				deadEdges[nrDeadEdges] = target.edge;
-				++nrDeadEdges;
-				// also remove this target from other ghosts
-				// (we know that ghost i will for sure move to this target, so other ghosts do
-				// not need to follow this target as well)
-				for (int j = 0; j < ghostTargets.length; ++j) {
-					if (j != i && nrGhostTargets[j] > 1) {
-						for (int k = 1; k < nrGhostTargets[j]; ++k) {
-							if (ghostTargets[j][k] == target) {
-								if(log)log("Removed target " + target.ghostJunction + " from ghost " + j + " (covered by " + i +")");
-								--nrGhostTargets[j];
-								if (nrGhostTargets[j] > 1) {
-									ghostTargets[j][k] = ghostTargets[j][nrGhostTargets[j]];
+				if (!target.edge.containsPowerPill) {
+					if (log)log("dead end: " + target.edge);
+					deadEdges[nrDeadEdges] = target.edge;
+					++nrDeadEdges;
+					// also remove this target from other ghosts
+					// (we know that ghost i will for sure move to this target, so other ghosts do
+					// not need to follow this target as well)
+					for (int j = 0; j < ghostTargets.length; ++j) {
+						if (j != i && nrGhostTargets[j] > 1) {
+							for (int k = 1; k < nrGhostTargets[j]; ++k) {
+								if (ghostTargets[j][k] == target) {
+									if(log)log("Removed target " + target.ghostJunction + " from ghost " + j + " (covered by " + i +")");
+									--nrGhostTargets[j];
+									if (nrGhostTargets[j] > 1) {
+										ghostTargets[j][k] = ghostTargets[j][nrGhostTargets[j]];
+									}
+									break;
 								}
-								break;
 							}
 						}
 					}
@@ -1144,7 +1150,7 @@ public class Search {
 	}
 	
 	private static class StaticEvaluator2 {
-		private static final boolean statLog = log && false;
+		private static final boolean statLog = log && true;
 		BorderEdge[] borders = new BorderEdge[50];
 		int nrBorders;
 		Node[] pacmanNodes = new Node[100];
@@ -1304,17 +1310,6 @@ public class Search {
 			return nrGhosts;
 		}
 		
-		public boolean match() {
-			if (nrBorders > 5) {
-				return false;
-			}
-			matchCalled = true;
-			ghostAssignment.calcAssignment(borders, nrBorders);
-			boolean result = ghostAssignment.bestNrAssignedGhosts >= nrBorders;
-			if(log)log("graph: match: " + result);
-			return result;
-		}
-		
 		private BorderEdge createEdge(Node pacmanJunction, BigEdge edge, int dist) {
 			if (statLog)log("createEdge, pacmanJunc " + pacmanJunction + ", edge " + edge + ", dist" + dist);
 			int endpoint = edge.endpoints[0] == pacmanJunction ? 0 : 1;
@@ -1356,7 +1351,7 @@ public class Search {
 							borderEdge.closerGhosts |= 1 << g;
 							if (statLog)log(otherJunction + ": closer ghost: " + ghostNode + ", dist: " + ghostDist);
 						} else {
-							if(statLog)log(otherJunction + ": longer away: ghost " + ghostNode + ", dist: " + ghostDist);
+							if(statLog)log(otherJunction + ": farther away: ghost " + ghostNode + ", dist: " + ghostDist);
 						}
 					}
 				} else {
@@ -1400,6 +1395,197 @@ public class Search {
 			return -1;
 		}
 		
+		/**
+		 * Checks if there is a power pill on a border edge closer to pacman than to ghosts.
+		 * Sets canReachPowerPill if that is the case
+		 */
+		private void checkPowerPillsOnBorderEdges() {
+			for (int i = 0; i < nrBorders; ++i) {
+				BorderEdge border = borders[i];
+				if (border.edge.containsPowerPill) {
+					int nodeIndex = b.findPowerPill(border.edge);
+					if (nodeIndex >= 0 && b.containsPowerPill[nodeIndex]) {
+						Node node = nodes[nodeIndex];
+						int distToGhostJunction = borders[i].edge.getDistanceToJunction(node, border.ghostJunction);
+						int pacmanDistToPowerPill = game.getShortestPathDistance(b.pacmanLocation, nodeIndex);
+						if(log)log("checkPowerPillsOnBorderEdges, pill " + node + ", pacmanDist: " + pacmanDistToPowerPill);
+						canReachPowerPill = true;
+						for (int g = 0; g < border.ghostDist.length; ++g) {
+							if (border.ghostDist[g] + distToGhostJunction - EAT_DISTANCE <= pacmanDistToPowerPill) {
+								if(log)log("closer ghost: " + g);
+								canReachPowerPill = false;
+								break;
+							}
+						}
+						if (canReachPowerPill) {
+							return;
+						}
+					}
+				}
+			}
+		}
+		
+		public boolean match() {
+			if (nrBorders > 6) {
+				return false;
+			}
+			matchCalled = true;
+			ghostAssignment.calcAssignment(borders, nrBorders);
+			boolean result = ghostAssignment.bestNrAssignedGhosts >= nrBorders;
+			if(log)log("graph: match: " + result);
+			if (!result && !hasCircles) {
+				// do a tree analysis
+				result = treeMatch();
+			}
+			if (result) {
+				checkPowerPillsOnBorderEdges();
+				result = !canReachPowerPill;
+			}
+			return result;
+		}
+		
+
+		/**
+		 * Makes a check if pacman survives if the border graph is a tree (no circles).
+		 * match must have been called before calling this method.
+		 * Involves checking non-assigned border edges; 1 ghost can cover more than 1 border edge
+		 * if it can choose later than pacman to which edge it should go.
+		 * @return true if pacman can be caught by the ghosts.
+		 */
+		private boolean treeMatch() {
+			if(log)log("treeMatch, " + ghostAssignment);
+			int assignedMask = 0; // which borders are assigned
+			for (int i = 0; i < ghostTargets.length; ++i) {
+				int assignedBorder = ghostAssignment.bestAssignedBorders[i];
+				if (assignedBorder >= 0) {
+					assignedMask |= 1 << assignedBorder;
+				}
+			}
+			// check unassigned borders, create targets for them
+			boolean pacmanCanEscape = false;
+			for (int e = 0; !pacmanCanEscape && e < nrBorders; ++e) {
+				if (((1 << e) & assignedMask) == 0) {
+					BorderEdge unassignedEdge = borders[e];
+					path1Length = 0;
+					for (BorderEdge parent = unassignedEdge.parent; parent != null; parent = parent.parent) {
+						if(log)log("path1: parent " + parent.edge + ", pacmandist: " + parent.pacmanDist);
+						path1[path1Length] = parent;
+						++path1Length;
+					}
+					boolean catchesPacman = false;
+					for (int i = 0; !catchesPacman && i < ghostTargets.length; ++i) {
+						if ((unassignedEdge.closerGhosts & (1<<i)) != 0) {
+							MyGhost ghost = b.ghosts[i];
+							int border = ghostAssignment.bestAssignedBorders[i];
+							if (border >= 0) {
+								BorderEdge assignedEdge = borders[border];
+								if(log)log("unassignedEdge: " + unassignedEdge.edge + ", assignedEdge: " + assignedEdge.edge + ", ghost: " + i);
+								path2Length = 0;
+								for (BorderEdge parent = assignedEdge.parent; parent != null; parent = parent.parent) {
+									if(log)log("path2: parent " + parent.edge + ", pacmandist: " + parent.pacmanDist);
+									path2[path2Length] = parent;
+									++path2Length;
+								}
+								int nrEqual = 0;
+								while (nrEqual < path1Length && nrEqual < path2Length && path1[path1Length-nrEqual-1] == path2[path2Length-nrEqual-1]) {
+									++nrEqual;
+								}
+								if(log)log("path1Length: " + path1Length + ", path2Length: " + path2Length + ", nr equal: " + nrEqual);
+								int distToFirst = 0;
+								int worstSlack = 1000;
+								if (nrEqual > 0) {
+									BorderEdge firstOnPath = path1[path1Length-nrEqual];
+									distToFirst = firstOnPath.pacmanDist;
+									Node firstNode = firstOnPath.ghostJunction;
+									worstSlack = firstOnPath.getPacmanSlack();
+									if(log)log("firstOnPath: " + firstNode + ", slack: " + worstSlack);
+									for (int g = 0; g < ghostTargets.length; ++g) {
+										MyGhost g2 = b.ghosts[g];
+										if (g2.canKill()) {
+											int ghostDist = b.graph.getGhostDistToJunction(g2.currentNodeIndex, g2.lastMoveMade, firstNode.index, MOVE.NEUTRAL);
+											int slack = ghostDist - 3 - distToFirst;
+											if(log)log("ghostDist " + g + " to first: " + ghostDist + ", pacmanDist: " + distToFirst 
+													+ ", worstSlack: " + worstSlack + ", slack: " + slack);
+											if (slack < worstSlack && slack >= 0) {
+												worstSlack = slack;
+												if(log)log("new slack: " + worstSlack);
+											}
+										}
+									}
+								}
+								for (int k = 0; k < path1Length-nrEqual; ++k) {
+									int slack = path1[k].getPacmanSlack();
+									if (slack < worstSlack) {
+										worstSlack = slack;
+									}
+								}
+								for (int k = 0; k < path2Length-nrEqual; ++k) {
+									int slack = path2[k].getPacmanSlack();
+									if (slack < worstSlack) {
+										worstSlack = slack;
+									}
+								}
+								// unfortunately pacman cannot wait at a junction: must make 1 move and then back.
+								// this can influence the slack negatively with 1 (round slack down to even number)
+								worstSlack = worstSlack&0xfffffe;
+								int timeUntilPacmanChoice = distToFirst + worstSlack;
+								int timeUntilGhostChoice = calcTimeUntilGhostChoice(ghost, assignedEdge, unassignedEdge);
+								/*if (timeUntilGhostChoice == 0) {
+									Node ghostNode = nodes[ghost.currentNodeIndex];
+									if (ghostNode.edge != null) {
+										timeUntilGhostChoice = ghostNode.getDistToNextJunction(ghost.lastMoveMade);
+									}
+								}*/
+								if(log)log("ghost choice: " + timeUntilGhostChoice + ", pacman: " + timeUntilPacmanChoice + ",distToFirst: " + distToFirst + ", slack: " + worstSlack);
+								catchesPacman = timeUntilGhostChoice >= timeUntilPacmanChoice;
+							}
+						}
+					}
+					pacmanCanEscape = !catchesPacman;
+				}
+			}
+			if(log)log("treeMatch: pacman can escape: " + pacmanCanEscape);
+			return !pacmanCanEscape;
+		}
+		
+		private int calcTimeUntilGhostChoice(MyGhost ghost, BorderEdge edge1, BorderEdge edge2) {
+			if(log)log("calcTimeUntilGhostChoice " + edge1.ghostJunction + "/" + edge2.ghostJunction);
+			int timeUntilGhostChoice = ghost.lairTime;
+			if (timeUntilGhostChoice == 0) {
+				Node firstNode = nodes[ghost.currentNodeIndex];
+				MOVE lastMoveMade = ghost.lastMoveMade;
+				if (firstNode.edge != null) {
+					timeUntilGhostChoice = firstNode.getDistToNextJunction(ghost.lastMoveMade);
+					lastMoveMade = firstNode.getLastMoveToNextJunction(lastMoveMade);
+					firstNode = nodes[firstNode.getNextJunction(ghost.lastMoveMade)];
+				}
+				int path1 = graph.getGhostPathToJunction(firstNode.junctionIndex, lastMoveMade, 
+						edge1.ghostJunction.junctionIndex, edge1.firstMoveFromGhost);
+				int path2 = graph.getGhostPathToJunction(firstNode.junctionIndex, lastMoveMade, 
+						edge2.ghostJunction.junctionIndex, edge2.firstMoveFromGhost);
+				Node currNode = firstNode;
+				if (log) {
+					log("path1 to " + edge1.ghostJunction);
+					for (int i = 0; JunctionGraph.paths[path1+i] >= 0; ++i) {
+						log(i + ": " + graph.junctionNodes[JunctionGraph.paths[path1+i]]);
+					}
+					log("path2 to " + edge2.ghostJunction);
+					for (int i = 0; JunctionGraph.paths[path2+i] >= 0; ++i) {
+						log(i + ": " + graph.junctionNodes[JunctionGraph.paths[path2+i]]);
+					}
+				}
+				for (int i = 0; JunctionGraph.paths[path1+i] >= 0 && JunctionGraph.paths[path2+i] == JunctionGraph.paths[path1+i]; ++i) {
+					Node newNode = graph.junctionNodes[JunctionGraph.paths[path1+i]];
+					timeUntilGhostChoice += game.getShortestPathDistance(currNode.index, newNode.index);
+					if(log)log("On common path: " + newNode + ", dist: " + timeUntilGhostChoice);
+					currNode = newNode;
+				}
+			}
+			if(log)log("calcTimeUntilGhostChoice returns " + timeUntilGhostChoice);
+			return timeUntilGhostChoice;
+		}
+		
+
 		private void logState() {
 			log("internal graph:");
 			StringBuilder buf = new StringBuilder();

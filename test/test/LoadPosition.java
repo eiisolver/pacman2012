@@ -67,13 +67,20 @@ public class LoadPosition {
 				"3,11692,33515,2686,3,510,RIGHT,1,true,602,0,0,UP,750,0,0,DOWN,516,0,0,RIGHT,762,0,0,DOWN,000000000000000000000000000000000000000000000100000000000000010000000100000001000000000000000000110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,0000"
 		};
 		List<String> lines = loadFile(file);
-		int mazeNr = Integer.parseInt(lines.get(0));
-		game.setGameState(mazeStrings[mazeNr]);
-		b.graph = new JunctionGraph();
-		b.graph.createFromMaze(game);
-		b.update(game);
-		lines.remove(0);
-		loadPosition(b, lines);
+		if (lines.get(0).startsWith("game")) {
+			game.setGameState(lines.get(1));
+			b.graph = new JunctionGraph();
+			b.graph.createFromMaze(game);
+			b.update(game);
+		} else {
+			int mazeNr = Integer.parseInt(lines.get(0));
+			game.setGameState(mazeStrings[mazeNr]);
+			b.graph = new JunctionGraph();
+			b.graph.createFromMaze(game);
+			b.update(game);
+			lines.remove(0);
+			loadPosition(b, lines);
+		}
 		Search.update(b, b.graph, game);
 	}
 

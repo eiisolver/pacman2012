@@ -45,6 +45,26 @@ public class GhostAssignment {
 		int ghostMask = 0xf;
 		int edgeMask = (1 << nrBorders) - 1;
 		/** search for edges that are only covered by 1 single ghost */
+		for (int i = 0; i < nrBorders; ++i) {
+			int edgeM = 1 << i;
+			if ((edgeMask & edgeM) != 0) {
+				int mask = borders[i].closerGhosts;
+				int h = mask;
+				if (bitCount(h) == 1) {
+					int ghost = lowestSetGhostBit(h);
+					if (assignedBorders[ghost] < 0) {
+						++nrAssignedGhosts;
+						assignedBorders[ghost] = i;
+						ghostMask &= ~h;
+						edgeMask &= ~edgeM;
+					}
+				}
+			}
+		}
+        if (ghostMask == 0 || edgeMask == 0) {
+            return;
+        }
+		/** search for edges that are only covered by 2 single ghosts */
 		boolean foundAssignment = false;
 		do {
 			foundAssignment = false;

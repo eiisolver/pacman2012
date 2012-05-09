@@ -72,6 +72,17 @@ public class Heuristics {
 				}
 			}
 		}
+		/*if (!Search.pacmanEvaluation && weakOpponent) {
+			for (int i = 0; i < graph.nodes.length; ++i) {
+				Node n = graph.nodes[i];
+				if (n.y <= 54) {
+					int pacmanX = graph.nodes[Search.b.pacmanLocation].x;
+					if ((pacmanX <= 54) == (n.x <= 30)) {
+						nodeScore[i] = 15000;
+					}
+				}
+			}
+		}*/
 	}
 
 	private void setPowerPillScore() {
@@ -91,7 +102,7 @@ public class Heuristics {
 			}
 		}
 		int factor = isWeakOpponent() ? 300 : 100;
-		int leftNearEnd = game.getCurrentLevelTime() - 2850 + factor*b.nrPowerPillsOnBoard;
+		int leftNearEnd = game.getCurrentLevelTime() - 2800 + factor*b.nrPowerPillsOnBoard;
 		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
 			if (Search.pacmanEvaluation) {

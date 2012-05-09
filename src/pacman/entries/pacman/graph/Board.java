@@ -96,6 +96,15 @@ public class Board {
 		currentLairTime=(int)(COMMON_LAIR_TIME*(Math.pow(LAIR_REDUCTION,game.getCurrentLevel())));
 	}
 	
+	public int findPowerPill(BigEdge edge) {
+		for (int i = 0; i < nrPowerPills; ++i) {
+			if (graph.nodes[powerPillLocation[i]].edge == edge) {
+				return powerPillLocation[i];
+			}
+		}
+		return -1;
+	}
+	
 	public void copyFrom(Board src) {
 		pacmanLocation = src.pacmanLocation;
 		pacmanLastMove = src.pacmanLastMove;

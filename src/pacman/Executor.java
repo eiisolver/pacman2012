@@ -28,6 +28,7 @@ import pacman.entries.ghosts.MyGhosts;
 import pacman.entries.pacman.MyPacMan;
 import pacman.game.Game;
 import pacman.game.GameView;
+import pacman.entries.ghostsv1.*;
 import pacman.entries.ghostsv3.*;
 import pacman.entries.ghostsv6.*;
 import pacman.entries.ghostsv7.*;
@@ -71,7 +72,7 @@ public class Executor
 		//exec.runGameTimed(new MyPacMan(),new MyGhostsV3(),visual);
 		//exec.runGame(new MyPacMan(),new MyGhostsV6(),visual, 40);
 		//exec.runGame(new MyPacMan(),new Legacy2TheReckoning(),visual, 40);
-		exec.runGame(new MyPacMan(),new MyGhostsV3(),visual, 10);
+		exec.runGame(new StarterPacMan(),new MyGhosts(),visual, 20);
 		//exec.runGameTimed(new HumanController(new KeyBoardInput()),new MyGhosts(),visual);			
 		//*/
 		String fileName="replay.txt";

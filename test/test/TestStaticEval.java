@@ -20,23 +20,20 @@ public class TestStaticEval {
 		loader.loadPosition(b, game, new File(testDir, fileName));
 		Log.println("Test " + fileName);
 		b.logBoard(game);
-		//Search.checkPacmanHealth();
-		long start = System.currentTimeMillis();
-		for (int i = 0; i < 1000000; ++i) {
-		Search.calcBorderEdges();
+		Log.println("Ghost positions:");
+		for (int i = 0; i < Search.b.ghosts.length; ++i) {
+			MyGhost g = Search.b.ghosts[i];
+			Log.println(i + ": " + (g.lairTime > 0 ? "L" : Search.nodes[g.currentNodeIndex]) + " " + g.lastMoveMade);
 		}
-		long duration = System.currentTimeMillis() - start;
-		System.out.println("duration: " + duration);
+		int result = Search.checkPacmanHealth();
+		Log.println("checkPacmanHealth returns " + result);
 	}
 	
 	public void runTests() throws Exception {
 		Log.logFile = new File("static_eval.log");
-		runFile("test.pos", true);
-		runFile("test2.pos", true);
-		runFile("test3.pos", true);
-		runFile("test4.pos", true);
-		runFile("test5.pos", true);
-		runFile("test6.pos", true);
+		runFile("static1.pos", true);
+		runFile("static2.pos", false);
+		runFile("static3.pos", false);
 		Log.flush();
 	}
 	public static void main(String[] args) throws Exception {

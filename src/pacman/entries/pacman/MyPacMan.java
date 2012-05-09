@@ -69,17 +69,21 @@ public class MyPacMan extends Controller<MOVE>
 			public void run() {
 				Node n = jgraph.nodes[board.pacmanLocation];
 				lastMove = n.neighbourMoves[Search.plyInfo[0].bestPacmanMove];
+				//System.out.println("Set lastMove to " + lastMove);
 			}
 		};
 		Search.searchMove(game, timeDue);
 		PlyInfo p = Search.plyInfo[0];
+		int bestMove = p.bestPacmanMove;
+		Node n = jgraph.nodes[board.pacmanLocation];
+		myMove = n.neighbourMoves[bestMove];
 		Log.println( "Searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 				+ ", value: " + p.bestValue);
 		System.out.println("Move: " + game.getCurrentLevelTime() 
 				+ " L" + game.getCurrentLevel() + ", Pacman searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
-				+ ", value: " + p.bestValue);
+				+ ", value: " + p.bestValue + ", move: " + myMove);
 		if (p.bestValue < -20000) {
 			Log.println("I will loose");
 			System.out.println("I will loose");
@@ -89,9 +93,6 @@ public class MyPacMan extends Controller<MOVE>
 			Log.println("Only move");
 			System.out.println("Only move");
 		}
-		int bestMove = p.bestPacmanMove;
-		Node n = jgraph.nodes[board.pacmanLocation];
-		myMove = n.neighbourMoves[bestMove];
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time: " + (endTime - startTime) + " ms");
 		if (true) {
@@ -108,7 +109,8 @@ public class MyPacMan extends Controller<MOVE>
 			GameView.addPoints(game,Color.GREEN, nodeList);
 		}
 		if (myMove != lastMove) {
-			System.err.println("lastMove != myMove");
+			System.err.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
+			System.out.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
 		}
 		return myMove;
 	}
