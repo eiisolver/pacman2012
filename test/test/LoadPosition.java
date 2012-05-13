@@ -42,8 +42,10 @@ public class LoadPosition {
 					++ghostNr;
 				} else if (c == 'X') {
 					Node n = b.graph.find(j, i);
-					b.powerPillLocation[b.nrPowerPills] = n.index;
+					b.addPowerPill(n.index);
+					/*b.powerPillLocation[b.nrPowerPills] = n.index;
 					b.containsPowerPill[n.index] = true;
+					++b.nrPowerPills;*/
 				}
 			}
 		}

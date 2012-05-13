@@ -61,31 +61,30 @@ public class GhostAssignment {
 				}
 			}
 		}
-        if (ghostMask == 0 || edgeMask == 0) {
-            return;
+        if (ghostMask != 0 || edgeMask != 0) {
+    		/** search for edges that are only covered by 2 single ghosts */
+    		boolean foundAssignment = false;
+    		do {
+    			foundAssignment = false;
+    			for (int i = 0; i < nrBorders; ++i) {
+    				int edgeM = 1 << i;
+    				if ((edgeMask & edgeM) != 0) {
+    					int mask = borders[i].closerGhosts;
+    					int h = mask & ghostMask;
+    					if (bitCount(h) == 1) {
+    						int ghost = lowestSetGhostBit(h);
+    						if (assignedBorders[ghost] < 0) {
+    							++nrAssignedGhosts;
+    						}
+    						assignedBorders[ghost] = i;
+    						ghostMask &= ~h;
+    						edgeMask &= ~edgeM;
+    						foundAssignment = true;
+    					}
+    				}
+    			}
+    		} while (foundAssignment);
         }
-		/** search for edges that are only covered by 2 single ghosts */
-		boolean foundAssignment = false;
-		do {
-			foundAssignment = false;
-			for (int i = 0; i < nrBorders; ++i) {
-				int edgeM = 1 << i;
-				if ((edgeMask & edgeM) != 0) {
-					int mask = borders[i].closerGhosts;
-					int h = mask & ghostMask;
-					if (bitCount(h) == 1) {
-						int ghost = lowestSetGhostBit(h);
-						if (assignedBorders[ghost] < 0) {
-							++nrAssignedGhosts;
-						}
-						assignedBorders[ghost] = i;
-						ghostMask &= ~h;
-						edgeMask &= ~edgeM;
-						foundAssignment = true;
-					}
-				}
-			}
-		} while (foundAssignment);
 		bestNrAssignedGhosts = nrAssignedGhosts;
 		for (int i = 0; i < assignedBorders.length; ++i) {
 			bestAssignedBorders[i] = assignedBorders[i];

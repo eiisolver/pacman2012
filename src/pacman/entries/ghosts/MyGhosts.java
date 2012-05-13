@@ -33,6 +33,10 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 		OpeningBook.init();
 	}
 	
+	public MyGhosts() {
+		board.initHash();
+	}
+	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
 	{
 		this.game = game;
@@ -50,6 +54,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 			jgraph = new JunctionGraph();
 			jgraph.createFromMaze(game);
 			board = new Board();
+			board.initHash();
 			board.graph = jgraph;
 			Search.update(board, jgraph, game);
 		}

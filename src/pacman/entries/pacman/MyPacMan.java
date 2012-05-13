@@ -31,6 +31,10 @@ public class MyPacMan extends Controller<MOVE>
 		Search.pacmanEvaluation = true;
 	}
 	
+	public MyPacMan() {
+		board.initHash();
+	}
+	
 	public MOVE getMove(Game game, long timeDue) 
 	{
 		//Place your game logic here to play the game as the ghosts
@@ -51,6 +55,7 @@ public class MyPacMan extends Controller<MOVE>
 			jgraph = new JunctionGraph();
 			jgraph.createFromMaze(game);
 			board = new Board();
+			board.initHash();
 			board.graph = jgraph;
 			Search.update(board, jgraph, game);
 		}

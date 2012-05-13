@@ -47,6 +47,12 @@ public class Board {
 		}
 	}
 	
+	public void initHash() {
+		for (MyGhost ghost : ghosts) {
+			ghost.initHash(Search.rand);
+		}
+	}
+	
 	public void update(Game game) {
 		nrPills = game.getPillIndices().length;
 		nrPillsOnBoard = 0;
@@ -94,6 +100,16 @@ public class Board {
 		}
 		currentEdibleTime = (int)(EDIBLE_TIME*(Math.pow(EDIBLE_TIME_REDUCTION,game.getCurrentLevel())));
 		currentLairTime=(int)(COMMON_LAIR_TIME*(Math.pow(LAIR_REDUCTION,game.getCurrentLevel())));
+	}
+	
+	public void addPowerPill(int index) {
+		containsPowerPill[index] = true;
+		if (containsPowerPill[index] && !graph.nodes[index].isJunction()) {
+			graph.nodes[index].edge.containsPowerPill = true;
+			++nrPowerPillsOnBoard;
+		}
+		powerPillLocation[nrPowerPills] = index;
+		++nrPowerPills;
 	}
 	
 	public int findPowerPill(BigEdge edge) {

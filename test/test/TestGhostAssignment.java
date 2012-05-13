@@ -35,6 +35,7 @@ public class TestGhostAssignment {
 		check(new int[] {11, 2, 8}, 3);
 		check(new int[] {12, 4, 8}, 2);
 		check(new int[] {2, 10, 4, 8, 10, 9}, 4);
+		check(new int[] {2, 8}, 2);
 	}
 
     public static void main(String[] args) {

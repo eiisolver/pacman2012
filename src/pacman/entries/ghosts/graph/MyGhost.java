@@ -14,13 +14,19 @@ public class MyGhost {
 	public int currentNodeIndex, edibleTime, lairTime;	
 	public MOVE lastMoveMade;
 	public GHOST ghost;
-	private long[] lairHash = new long[1000];
-	private long[] indexHash = new long[4000];
-	private long[] moveHash = new long[MOVE.values().length];
-	private long[] edibleHash = new long[2*Constants.EDIBLE_TIME];
+	private long[] lairHash;
+	private long[] indexHash;
+	private long[] moveHash;
+	private long[] edibleHash;
 	
 	public MyGhost() {
-		Random rnd = Search.rand;
+	}
+	
+	public void initHash(Random rnd) {
+		lairHash = new long[1000];
+		indexHash = new long[4000];
+		moveHash = new long[MOVE.values().length];
+		edibleHash = new long[2*Constants.EDIBLE_TIME];
 		for (int i = 0; i < lairHash.length; ++i) {
 			lairHash[i] = rnd.nextLong();
 		}
