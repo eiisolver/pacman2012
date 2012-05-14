@@ -131,10 +131,10 @@ public class TransposTable {
 			}
 			int kind = t.flags & 3;
 			boolean willDie =  Math.abs(t.value) >= 20000;
-			if (willDie) {
+			if (willDie && p.budget <= 0) {
 				// death evaluations made with budget < 0 are not 100% reliable and will
 				// propagate upwards; we trust them only a limited time.
-				willDie = t.budget >= p.budget - 20 && (t.budget >= 0 == p.budget >= 0);
+				willDie = t.budget >= p.budget - 20;
 			}
 			if (t.budget >= p.budget || willDie) {
 				if (kind == REAL_VALUE

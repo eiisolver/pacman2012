@@ -101,7 +101,7 @@ public class Heuristics {
 				weakScore = -((20 - game.getCurrentLevel())*Constants.GHOST_EAT_SCORE*POINT_FACTOR)/8;
 			}
 		}
-		int factor = isWeakOpponent() ? 300 : 100;
+		int factor = isWeakOpponent() ? 300 : 150;
 		int leftNearEnd = game.getCurrentLevelTime() - 2800 + factor*b.nrPowerPillsOnBoard;
 		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
@@ -122,8 +122,8 @@ public class Heuristics {
 		} else {
 			powerPillScore = isWeakOpponent() ? weakScore : -500;
 		}
-		System.out.println("power pill score: " + powerPillScore /*+ ", nrPillsOnboard = " + b.nrPillsOnBoard + "/" + b.nrPills*/
-				+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
+		//System.out.println("power pill score: " + powerPillScore 
+		//		+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
 	}
 
 	private boolean existNonKillingGhosts() {

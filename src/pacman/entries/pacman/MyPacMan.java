@@ -100,7 +100,7 @@ public class MyPacMan extends Controller<MOVE>
 		}
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time: " + (endTime - startTime) + " ms");
-		if (true) {
+		/*if (true) {
 			List<Integer> visitedList = new ArrayList<Integer>();
 			for (int i = 0; i < jgraph.nodes.length; ++i) {
 				if (Search.pacmanVisited[i]) {
@@ -112,11 +112,11 @@ public class MyPacMan extends Controller<MOVE>
 				nodeList[i] = visitedList.get(i);
 			}
 			GameView.addPoints(game,Color.GREEN, nodeList);
-		}
-		if (myMove != lastMove) {
+		}*/
+		/*if (myMove != lastMove) {
 			System.err.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
 			System.out.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
-		}
+		}*/
 		return myMove;
 	}
 	

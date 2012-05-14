@@ -487,10 +487,25 @@ public class Search {
 				int nearestGhost = -1;
 				for (int g = 0; g < nrEdibleGhosts; ++g) {
 					int dist = game.getShortestPathDistance(b.pacmanLocation, edibleGhosts[g]);
-					dist += dist/3; // assume ghost moves away
+					dist += dist/4; // assume ghost moves away
 					if (dist < shortestDist) {
-						shortestDist = dist;
-						nearestGhost = g;
+						boolean killingGhostIsCloser = false;
+						for (MyGhost ghost : b.ghosts) {
+							if (ghost.canKill()) {
+								if (game.getShortestPathDistance(ghost.currentNodeIndex, edibleGhosts[g]) < shortestDist) {
+									if(log)log("killing ghost is closer ");
+									killingGhostIsCloser = true;
+									break;
+								}
+							}
+						}
+						if (killingGhostIsCloser) {
+							shortestDist += 30;
+						}
+						if (dist < shortestDist) {
+							shortestDist = dist;
+							nearestGhost = g;
+						}
 					}
 					if (dist > longestDist) {
 						longestDist = dist;
@@ -498,7 +513,9 @@ public class Search {
 				}
 				if(log)log("nearest ghost: " + shortestDist + ", maxEdible = " + maxEdibleTime);
 				if (shortestDist < maxEdibleTime) {
-					boolean killingGhostIsCloser = false;
+					edibleBonus = 10*GHOST_EAT_SCORE-25*shortestDist;
+					if(log)log("edible bonus: " + edibleBonus);
+					/*boolean killingGhostIsCloser = false;
 					for (MyGhost ghost : b.ghosts) {
 						if (ghost.canKill()) {
 							if (game.getShortestPathDistance(ghost.currentNodeIndex, edibleGhosts[nearestGhost]) < shortestDist) {
@@ -509,9 +526,9 @@ public class Search {
 						}
 					}
 					if (!killingGhostIsCloser) {
-						if(log)log("edible bonus: " + edibleBonus);
 						edibleBonus = 10*GHOST_EAT_SCORE-10*shortestDist;
-					}
+						if(log)log("edible bonus: " + edibleBonus);
+					}*/
 				}
 				
 			} else {
@@ -713,33 +730,6 @@ public class Search {
 	
 	public static int checkPacmanHealth() {
 		pacmanCanGetToPowerPill = false;
-		/*Node pacmanNode = graph.nodes[b.pacmanLocation];
-		// check if pacman can get safely to a power pill
-		pacmanCanGetToPowerPill = false;
-		for (int i = 0; i < b.nrPowerPills; ++i) {
-			int powerPill = b.powerPillLocation[i];
-			if (b.containsPowerPill[powerPill]) {
-				int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, powerPill);
-				int ghostDist = 100000;
-				for (MyGhost ghost : b.ghosts) {
-					int dist;
-					if (ghost.lairTime == 0) {
-						dist = ghostDist(ghost, game.getShortestPathDistance(ghost.currentNodeIndex, powerPill));
-					} else {
-						dist = ghost.lairTime + game.getShortestPathDistance(game.getGhostInitialNodeIndex(), powerPill);
-					}
-					if (dist < ghostDist) {
-						ghostDist = dist;
-					}
-				}
-				if (pacmanDist + EAT_DISTANCE < ghostDist) {
-					// we have found a power pill that is closer to pacman than to any ghost.
-					// pacman is safe.
-					pacmanCanGetToPowerPill = true;
-					return 0;
-				}
-			}
-		}*/
 		calcBorderEdges();
 		//if (staticEval2.nrBorders <= 6 
 		//		&& staticEval2.nrPacmanNodes <= 4 && staticEval2.match()) {
@@ -753,6 +743,7 @@ public class Search {
 			// pacman will die!
 			// try to make it as difficult for the ghosts as possible to find the correct path.
 			int longestDist = 0;
+			int longestPacmanDist = 0;
 			for (int i = 0; i < staticEval2.nrBorders; ++i) {
 				BorderEdge borderEdge = staticEval2.borders[i];
 				int closestGhostDist = 10000;
@@ -764,8 +755,11 @@ public class Search {
 				if (closestGhostDist > longestDist) {
 					longestDist = closestGhostDist;
 				}
+				if (borderEdge.pacmanDist > longestPacmanDist) {
+					longestPacmanDist = borderEdge.pacmanDist; 
+				}
 			}
-			int difficulty = 10*staticEval2.nrBorders + 8*staticEval2.nrPacmanNodes + longestDist;
+			int difficulty = 10*staticEval2.nrBorders + 8*staticEval2.nrPacmanNodes + longestDist + longestPacmanDist;
 			return PACMAN_WILL_DIE + 5000 - difficulty - currDepth - game.getCurrentLevelTime();
 		}
 		return 0;
@@ -968,7 +962,41 @@ public class Search {
 		}
 	}
 
-
+	/**
+	 * Checks if pacman is closer to a power pill than any ghost, just by looking 
+	 * at shortestDist. If true is returned, it is 100% certain that pacman can reach
+	 * a powerpill, but if false is returned the result may be inaccurate, 
+	 * it may in fact be that the closer ghost(s) cannot stop pacman from taking the pill.
+	 * @return
+	 */
+	private static boolean canGetToPowerPillQuickAndDirty() {
+		// check if pacman can get safely to a power pill
+		boolean canReachPowerPill = false;
+		for (int i = 0; i < b.nrPowerPills; ++i) {
+			int powerPill = b.powerPillLocation[i];
+			if (b.containsPowerPill[powerPill]) {
+				int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, powerPill);
+				int ghostDist = 100000;
+				for (MyGhost ghost : b.ghosts) {
+					int dist;
+					if (ghost.lairTime == 0) {
+						dist = ghostDist(ghost, game.getShortestPathDistance(ghost.currentNodeIndex, powerPill));
+					} else {
+						dist = ghost.lairTime + game.getShortestPathDistance(game.getGhostInitialNodeIndex(), powerPill);
+					}
+					if (dist < ghostDist) {
+						ghostDist = dist;
+					}
+				}
+				if (pacmanDist + EAT_DISTANCE < ghostDist) {
+					// we have found a power pill that is closer to pacman than to any ghost.
+					// pacman is safe.
+					canReachPowerPill = true;
+				}
+			}
+		}
+		return canReachPowerPill;
+	}
 	public static void log(String msg) {
 		if (!log) {
 			System.err.println("Should not be called: log " + msg);
@@ -1174,7 +1202,7 @@ public class Search {
 	}
 	
 	private static class StaticEvaluator2 {
-		private static final boolean statLog = log && true;
+		private static final boolean statLog = log && false;
 		BorderEdge[] borders = new BorderEdge[50];
 		int nrBorders;
 		Node[] pacmanNodes = new Node[100];
@@ -1483,6 +1511,10 @@ public class Search {
 				}
 				if (result && !canReachPowerPill) {
 					canReachPowerPill = checkPowerPillsOnBorderEdges();
+					if (!canReachPowerPill) {
+						// result may be inaccurate, take a second opinion.
+						canReachPowerPill = canGetToPowerPillQuickAndDirty();
+					}
 					if (log&&canReachPowerPill)log("pacman can reach powerpill");
 					//result = !canReachPowerPill;
 				}
