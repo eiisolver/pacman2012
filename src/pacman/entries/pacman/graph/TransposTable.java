@@ -1,5 +1,7 @@
 package pacman.entries.pacman.graph;
 
+import pacman.entries.ghosts.graph.Search.StaticEvaluator2;
+
 /**
  * Transposition table, contains search results of many positions.
  * 
@@ -21,6 +23,11 @@ public class TransposTable {
 	 */
 	private static final TransposInfo[] table = new TransposInfo[NR_ENTRIES];
 	/**
+	 * Cached static evaluation results
+	 */
+	private static final CachedStaticInfo[] cachedStaticInfo = new CachedStaticInfo[NR_ENTRIES];
+	
+	/**
 	 * Holds a mask that is changed every move to avoid retaining old hash
 	 * entries
 	 */
@@ -29,6 +36,9 @@ public class TransposTable {
 	static {
 		for (int i = 0; i < table.length; ++i) {
 			table[i] = new TransposInfo();
+		}
+		for (int i = 0; i < cachedStaticInfo.length; ++i) {
+			cachedStaticInfo[i] = new CachedStaticInfo();
 		}
 	}
 
@@ -106,8 +116,11 @@ public class TransposTable {
 	 * @return true if no further search is necessary
 	 */
 	public static boolean retrieve(Board b, PlyInfo p, boolean movePacman) {
-		long hash = b.getHash(movePacman);
-		p.hash = hash;
+		long hash = p.hash;
+		if (hash == 0) {
+			hash = b.getHash(movePacman);
+			p.hash = hash;
+		}
 		p.transpos = null;
 		int index = (int) (hash & (NR_ENTRIES - 1));
 		TransposInfo t = table[index];
@@ -150,6 +163,54 @@ public class TransposTable {
 		}
 		return false;
 	}
+	
+	public static void storeStaticEval(PlyInfo p) {
+		Search.StaticEvaluator2 eval = Search.staticEval2;
+		if (eval.resultFromCache || !eval.expandCalled) {
+			return;
+		}
+		long hash = p.hash;
+		int index = (int) (hash & (NR_ENTRIES - 1));
+		CachedStaticInfo cached = cachedStaticInfo[index];
+		cached.hash = hash;
+		cached.nrBorders = eval.nrBorders;
+		cached.nrPacmanNodes = eval.nrPacmanNodes;
+		cached.hasCircles = eval.hasCircles;
+		cached.canReachPowerPill = eval.canReachPowerPill;
+		cached.matchCalled = eval.matchCalled;
+		cached.matchResult = eval.matchResult;
+		cached.bestNrAssignedGhosts = eval.ghostAssignment.bestNrAssignedGhosts;
+		cached.nrInvolvedGhosts = eval.nrInvolvedGhosts;
+		cached.pacmanHealth = eval.pacmanHealth;
+		if(Search.log)Search.log("storeStatic " + cached);
+	}
+	
+	public static boolean retrieveStaticEval(PlyInfo p, boolean movePacman) {
+		long hash = p.hash;
+		if (hash == 0) {
+			hash = Search.b.getHash(movePacman);
+			p.hash = hash;
+			int index = (int) (hash & (NR_ENTRIES - 1));
+			CachedStaticInfo cached = cachedStaticInfo[index];
+			if (cached.hash == hash) {
+				if(Search.log)Search.log("Retrieved static, " + cached);
+				Search.StaticEvaluator2 eval = Search.staticEval2;
+				eval.nrBorders = cached.nrBorders;
+				eval.nrPacmanNodes = cached.nrPacmanNodes;
+				eval.hasCircles = cached.hasCircles;
+				eval.canReachPowerPill = cached.canReachPowerPill;
+				eval.matchCalled = cached.matchCalled;
+				eval.matchResult = cached.matchResult;
+				eval.ghostAssignment.bestNrAssignedGhosts = cached.bestNrAssignedGhosts;
+				eval.nrInvolvedGhosts = cached.nrInvolvedGhosts;
+				eval.pacmanHealth = cached.pacmanHealth;
+				eval.expandCalled = true;
+				eval.resultFromCache = true;
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * Contains saved information about a position.
@@ -165,5 +226,33 @@ public class TransposTable {
 		short budget;
 		/** pacman location (only used to verify consistency) */
 		short pacmanLocation;
+	}
+	
+	static class CachedStaticInfo {
+		long hash;
+		int nrBorders;
+		int nrPacmanNodes;
+		boolean hasCircles;
+		boolean matchCalled;
+		boolean matchResult;
+		boolean canReachPowerPill;
+		int bestNrAssignedGhosts;
+		boolean ghostAssignCalled;
+		int nrInvolvedGhosts;
+		int pacmanHealth;
+		
+		@Override
+		public String toString() {
+			return "CachedStaticInfo [hash=" + hash + ", nrBorders="
+					+ nrBorders + ", nrPacmanNodes=" + nrPacmanNodes
+					+ ", hasCircles=" + hasCircles + ", matchCalled="
+					+ matchCalled + ", matchResult=" + matchResult
+					+ ", canReachPowerPill=" + canReachPowerPill
+					+ ", bestNrAssignedGhosts=" + bestNrAssignedGhosts
+					+ ", ghostAssignCalled=" + ghostAssignCalled
+					+ ", nrInvolvedGhosts=" + nrInvolvedGhosts
+					+ ", pacmanHealth=" + pacmanHealth + "]";
+		}
+		
 	}
 }

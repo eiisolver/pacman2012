@@ -69,6 +69,7 @@ public class Search {
 	private static int path1Length = 0;
 	private static BorderEdge[] path2 = new BorderEdge[10];
 	private static int path2Length = 0;
+	public static long nrRetrievedStatic = 0;
 
 
 	static {
@@ -126,6 +127,7 @@ public class Search {
 		Arrays.fill(pacmanVisited, false);
 		Search.currDepth = 0;
 		Search.nodesSearched = 0;
+		nrRetrievedStatic = 0;
 		PlyInfo p = plyInfo[0];
 		p.alpha = -MAX_VALUE;
 		p.beta = MAX_VALUE;
@@ -201,6 +203,7 @@ public class Search {
 		boolean evenPly = (currDepth & 1) == 0;
 		boolean movePacman = evenPly == pacmanMovesFirst;
 		p.moveScore = 0;
+		p.hash = 0;
 		// on even plies, check pacman/ghost alive status
 		if (evenPly) {
 			// check for dead pacman or ghosts
@@ -214,7 +217,8 @@ public class Search {
 			if (extendedSearchDepth > 0) {
 				if (p.budget <= -60) {
 					// end of extended search reached; static check if pacman is in danger
-					value = checkPacmanHealth();
+					value = checkPacmanHealth(p, movePacman);
+					TransposTable.storeStaticEval(p);
 					if (value >= PACMAN_WILL_DIE) {
 						p.bestValue = movePacman ? -value : value;
 						return;
@@ -226,7 +230,8 @@ public class Search {
 				boolean dropOutEarly = false;
 				if (currDepth < 2 || plyInfo[currDepth-2].nrPossibleMoves > 1 || plyInfo[currDepth-1].nrPossibleMoves > 1) {
 					// static check if pacman is in danger
-					value = checkPacmanHealth();
+					value = checkPacmanHealth(p, movePacman);
+					TransposTable.storeStaticEval(p);
 					if (value >= PACMAN_WILL_DIE && currDepth > 0) {
 						p.bestValue = movePacman ? -value : value;
 						return;
@@ -348,9 +353,11 @@ public class Search {
 				++p.nrSurvivingMoves;
 			}
 		}
-		if (p.nrPossibleMoves > 1 && !emergencyStopped) {
-			updateKillerMoves(movePacman);
-			TransposTable.store(b, p, movePacman);
+		if (!emergencyStopped) {
+			if (p.nrPossibleMoves > 1) {
+				updateKillerMoves(movePacman);
+				TransposTable.store(b, p, movePacman);
+			}
 		}
 		if (!movePacman && extendedSearchDepth > 0) {
 			p.restoreTargets();
@@ -407,7 +414,7 @@ public class Search {
 		boolean extendSearch = false;
 		int graphBonus = 400;
 		if (!pacmanCanGetToPowerPill || !pacmanEvaluation || heuristics.getPowerPillScore() < 0) {
-			calcBorderEdges();
+			calcBorderEdges(p, movePacman);
 			if (staticEval2.nrBorders < 8 && staticEval2.nrPacmanNodes < 8) {
 				boolean wouldDieWithoutPowerPill = staticEval2.wouldDieWithoutPowerPill();
 				if (wouldDieWithoutPowerPill && pacmanCanGetToPowerPill) {
@@ -728,9 +735,31 @@ public class Search {
 	}
 	
 	
+	/**
+	 * (for test purposes)
+	 * @return
+	 */
 	public static int checkPacmanHealth() {
+		PlyInfo p = new PlyInfo();
+		p.hash = 0;//b.getHash(true);
+		return checkPacmanHealth(p, true);
+	}
+	
+	/**
+	 * Checks if pacman will survive
+	 * @param p
+	 * @param movePacman
+	 * @return 0 if pacman survives, 1 if pacman survives but must take a power pill,
+	 *         or a high value if pacman will die (the higher value, the less time it will take
+	 *         for the ghosts to capture pacman)
+	 */
+	public static int checkPacmanHealth(PlyInfo p, boolean movePacman) {
 		pacmanCanGetToPowerPill = false;
-		calcBorderEdges();
+		calcBorderEdges(p, movePacman);
+		if (staticEval2.resultFromCache) {
+			pacmanCanGetToPowerPill = staticEval2.canReachPowerPill;
+			return staticEval2.pacmanHealth;
+		}
 		//if (staticEval2.nrBorders <= 6 
 		//		&& staticEval2.nrPacmanNodes <= 4 && staticEval2.match()) {
 		if (staticEval2.wouldDieWithoutPowerPill()) {
@@ -738,6 +767,7 @@ public class Search {
 			if (pacmanCanGetToPowerPill) {
 				// pacman would normally die, but fortunately it can reach a power pill
 				if(log)log("pacman dies but can take power pill");
+				staticEval2.pacmanHealth = 1;
 				return 1;
 			}
 			// pacman will die!
@@ -760,9 +790,11 @@ public class Search {
 				}
 			}
 			int difficulty = 10*staticEval2.nrBorders + 8*staticEval2.nrPacmanNodes + longestDist + longestPacmanDist;
-			return PACMAN_WILL_DIE + 5000 - difficulty - currDepth - game.getCurrentLevelTime();
+			staticEval2.pacmanHealth = PACMAN_WILL_DIE + 5000 - difficulty - currDepth - game.getCurrentLevelTime();
+			return staticEval2.pacmanHealth;
 		}
-		return 0;
+		staticEval2.pacmanHealth = 0;
+		return staticEval2.pacmanHealth;
 
 		/*boolean pacmanDies = false;
 		int difficulty = 0;
@@ -1115,8 +1147,15 @@ public class Search {
 	
 	public static StaticEvaluator2 staticEval2 = new StaticEvaluator2();
 	
-	public static void calcBorderEdges() {
-		staticEval2.expand();
+	public static void calcBorderEdges(PlyInfo p, boolean movePacman) {
+		if (staticEval2.expandCalled) {
+			return;
+		}
+		if (!TransposTable.retrieveStaticEval(p, movePacman)) {
+			staticEval2.expand();
+		} else {
+			nrRetrievedStatic++;
+		}
 	}
 	
 	private static void setExtendedSearchTargets() {
@@ -1201,8 +1240,8 @@ public class Search {
 		staticEval2.clear();
 	}
 	
-	private static class StaticEvaluator2 {
-		private static final boolean statLog = log && false;
+	public static class StaticEvaluator2 {
+		private static final boolean statLog = log && true;
 		BorderEdge[] borders = new BorderEdge[50];
 		int nrBorders;
 		Node[] pacmanNodes = new Node[100];
@@ -1215,15 +1254,19 @@ public class Search {
 		int nrNewAdded;
 		public boolean hasCircles;
 		/** true if expand has been called */
-		private boolean expandCalled;
+		boolean expandCalled;
 		/** true if match has been called */
-		private boolean matchCalled;
+		boolean matchCalled;
 		/** cached result of the call to match */
-		private boolean matchResult;
+		boolean matchResult;
 		/** if ghosts have been assigned to border edges */
-		private boolean ghostAssignCalled;
+		boolean ghostAssignCalled;
 		public GhostAssignment ghostAssignment = new GhostAssignment();
 		public boolean canReachPowerPill;
+		int nrInvolvedGhosts;
+		/** True if the result was a cached result */
+		boolean resultFromCache;
+		int pacmanHealth;
 		
 		public void update() {
 			pacmanDistances = new int[graph.junctionNodes.length];
@@ -1248,6 +1291,8 @@ public class Search {
 			expandCalled = false;
 			matchCalled = false;
 			ghostAssignCalled = false;
+			resultFromCache = false;
+			nrInvolvedGhosts = -1;
 		}
 		
 		public void expand() {
@@ -1369,8 +1414,12 @@ public class Search {
 		}
 		
 		public int getNrInvolvedGhosts() {
-			if (staticEval2.ghostAssignCalled) {
-				return ghostAssignment.bestNrAssignedGhosts;
+			if (nrInvolvedGhosts >= 0) {
+				return nrInvolvedGhosts;
+			}
+			if (ghostAssignCalled) {
+				nrInvolvedGhosts = ghostAssignment.bestNrAssignedGhosts;
+				return nrInvolvedGhosts;
 			}
 			int ghosts = 0;
 			for (int b = 0; b < nrBorders; ++b) {
@@ -1382,6 +1431,7 @@ public class Search {
 					++nrGhosts;
 				}
 			}
+			nrInvolvedGhosts = nrGhosts;
 			return nrGhosts;
 		}
 		
@@ -1508,6 +1558,20 @@ public class Search {
 				if (!result && !hasCircles) {
 					// do a tree analysis
 					result = treeMatch();
+				}
+				// special case, use old static evaluator for edge/junction evaluation, because
+				// the new static evaluator cannot handle it correctly if there is for example
+				// 1 ghost covering the only 2 border edges, but there are some more ghosts close.
+				if (!result && nrBorders <= 3 && ghostAssignment.bestNrAssignedGhosts >= nrBorders-1) {
+					Node pacmanNode = nodes[b.pacmanLocation];
+					if (!pacmanNode.isJunction()) {
+						BigEdge pacmanEdge = pacmanNode.edge;
+						boolean pacmanDies = checkPacmanEdgeJunction(pacmanEdge.endpoints[0].index);
+						if (!pacmanDies) {
+							pacmanDies = checkPacmanEdgeJunction(pacmanEdge.endpoints[1].index);
+						}
+						result = pacmanDies;
+					}
 				}
 				if (result && !canReachPowerPill) {
 					canReachPowerPill = checkPowerPillsOnBorderEdges();

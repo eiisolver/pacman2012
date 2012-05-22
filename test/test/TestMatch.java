@@ -21,9 +21,10 @@ public class TestMatch {
 		Log.println("Test " + fileName);
 		b.logBoard(game);
 		//Search.checkPacmanHealth();
+		PlyInfo p = new PlyInfo();
 		long start = System.currentTimeMillis();
 		for (int i = 0; i < 1000000; ++i) {
-		Search.calcBorderEdges();
+		Search.calcBorderEdges(p, true);
 		}
 		long duration = System.currentTimeMillis() - start;
 		System.out.println("duration: " + duration);

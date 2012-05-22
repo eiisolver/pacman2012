@@ -73,12 +73,14 @@ public class LoadPosition {
 			game.setGameState(lines.get(1));
 			b.graph = new JunctionGraph();
 			b.graph.createFromMaze(game);
+			b.initHash();
 			b.update(game);
 		} else {
 			int mazeNr = Integer.parseInt(lines.get(0));
 			game.setGameState(mazeStrings[mazeNr]);
 			b.graph = new JunctionGraph();
 			b.graph.createFromMaze(game);
+			b.initHash();
 			b.update(game);
 			lines.remove(0);
 			loadPosition(b, lines);

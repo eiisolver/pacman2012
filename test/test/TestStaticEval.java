@@ -31,6 +31,7 @@ public class TestStaticEval {
 	
 	public void runTests() throws Exception {
 		Log.logFile = new File("static_eval.log");
+		runFile("static4.pos", true);
 		runFile("static1.pos", true);
 		runFile("static2.pos", false);
 		runFile("static3.pos", false);

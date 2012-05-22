@@ -89,6 +89,7 @@ public class MyPacMan extends Controller<MOVE>
 				+ " L" + game.getCurrentLevel() + ", Pacman searched " + Search.nodesSearched 
 				+ " nodes, budget: " + p.budget + ", max depth: " + Search.deepestSearchedPly()
 				+ ", value: " + p.bestValue + ", move: " + myMove);
+		System.out.println("retrieved static: " + Search.nrRetrievedStatic);
 		if (p.bestValue < -20000) {
 			Log.println("I will loose");
 			System.out.println("I will loose");
@@ -100,7 +101,7 @@ public class MyPacMan extends Controller<MOVE>
 		}
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time: " + (endTime - startTime) + " ms");
-		/*if (true) {
+		if (true) {
 			List<Integer> visitedList = new ArrayList<Integer>();
 			for (int i = 0; i < jgraph.nodes.length; ++i) {
 				if (Search.pacmanVisited[i]) {
@@ -112,7 +113,7 @@ public class MyPacMan extends Controller<MOVE>
 				nodeList[i] = visitedList.get(i);
 			}
 			GameView.addPoints(game,Color.GREEN, nodeList);
-		}*/
+		}
 		/*if (myMove != lastMove) {
 			System.err.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
 			System.out.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
