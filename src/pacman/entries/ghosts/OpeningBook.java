@@ -9,10 +9,13 @@ public class OpeningBook {
 	private static HashMap<String, List<Move>> positions = new HashMap<String, List<Move>>();
 	
 	public static void init() {
+		put("0,40,90,40,0,824,LEFT,3,false,498,0,0,NEUTRAL,1292,0,20,NEUTRAL,1292,0,40,NEUTRAL,1292,0,60,NEUTRAL,11111,1111", 44,54, MOVE.LEFT);
 		// typical 58th move against starter pacman
 		put("0,58,140,58,0,794,UP,3,false,480,0,0,LEFT,1292,0,2,NEUTRAL,1292,0,22,NEUTRAL,1292,0,42,NEUTRAL,1111111111,1111", 44,36, MOVE.LEFT);
 		put("0,82,200,82,0,569,UP,3,false,456,0,0,LEFT,554,0,0,DOWN,496,0,0,LEFT,1292,0,18,NEUTRAL,1111111,1111", 44, 12, MOVE.DOWN);
 		// typical right move against starter pacman
+		/** Typical moves when starter pacman goes to the right and then up */
+		put("0,449,960,449,0,868,RIGHT,2,false,498,0,0,NEUTRAL,1292,0,20,NEUTRAL,1292,0,40,NEUTRAL,1292,0,60,NEUTRAL,111,0111", 44, 54, MOVE.RIGHT);
 		put("0,173,310,173,0,801,UP,2,false,516,0,0,RIGHT,1292,0,2,NEUTRAL,1292,0,22,NEUTRAL,1292,0,42,NEUTRAL,1111111,1111", 44,72, MOVE.RIGHT);
 		//put("0,163,310,163,0,801,UP,2,false,516,0,0,RIGHT,1292,0,2,NEUTRAL,1292,0,22,NEUTRAL,1292,0,42,NEUTRAL,1111111,1111", 44,72, MOVE.RIGHT);
 		put("0,195,360,195,0,642,DOWN,2,false,538,0,0,RIGHT,518,0,0,RIGHT,498,0,0,NEUTRAL,1292,0,20,NEUTRAL,11111111,1111", 44,54, MOVE.LEFT);
@@ -25,6 +28,7 @@ public class OpeningBook {
 		}
 		String gamePosition = game.getGameState();
 		String pos = normalize(gamePosition);
+		//System.out.println("Position: " + pos);
 		List<Move> list = positions.get(pos);
 		if (list != null) {
 			for (Move move : list) {
@@ -53,8 +57,8 @@ public class OpeningBook {
 	private static String normalize(String position) {
 		int index1 = findComma(position, 4);
 		int index2 = findComma(position, 25);
-		int index3 = position.lastIndexOf(',');
-		String sub = position.substring(index1, index2) + position.substring(index3);
+		//int index3 = position.lastIndexOf(',');
+		String sub = position.substring(index1, index2)/* + position.substring(index3)*/;
 		return sub;
 	}
 	

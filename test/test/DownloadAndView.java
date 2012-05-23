@@ -4,7 +4,7 @@ import java.io.*;
 import java.util.*;
 
 public class DownloadAndView {
-	public static int gameNr = 1407344;
+	public static int gameNr = 1432591;
 	
 	public static List<String> load(int gameNr) throws Exception {
 		String fileName = "games/" + gameNr + ".txt";

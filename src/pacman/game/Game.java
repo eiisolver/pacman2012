@@ -1,6 +1,5 @@
 package pacman.game;
 
-import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.EnumMap;
 import java.util.Random;
@@ -11,6 +10,7 @@ import pacman.game.internal.Ghost;
 import pacman.game.internal.Maze;
 import pacman.game.internal.Node;
 import pacman.game.internal.PacMan;
+import pacman.game.internal.PathsCache;
 
 import static pacman.game.Constants.*;
 
@@ -39,20 +39,32 @@ public final class Game
 	//pills stored as bitsets for efficient copying
 	private BitSet pills, powerPills;
 	//all the game's variables
-	private int mazeIndex, levelCount, currentLevelTime, totalTime, score, ghostEatMultiplier;
+	private int mazeIndex, levelCount, currentLevelTime, totalTime, score, ghostEatMultiplier, timeOfLastGlobalReversal;	
 	private boolean gameOver, globalReverse;
+	private boolean enableGlobalReversals=true;
 	//the data relating to pacman and the ghosts are stored in respective data structures for clarity
 	private PacMan pacman;
 	private EnumMap<GHOST, Ghost> ghosts;
 
 	//mazes are only loaded once since they don't change over time
 	private static Maze[] mazes=new Maze[NUM_MAZES];;
+	
 	private Maze currentMaze;
 	
 	static 
 	{
 		for(int i=0;i<mazes.length;i++)
 			mazes[i]=new Maze(i);
+	}
+	
+	public static PathsCache[] caches=new PathsCache[NUM_MAZES];
+	
+	static 
+	{
+		for(int i=0;i<mazes.length;i++)
+		{
+			caches[i]=new PathsCache(i);
+		}
 	}
 	
 	private Random rnd;
@@ -75,17 +87,41 @@ public final class Game
 		this.seed=seed;
 		rnd=new Random(seed);
 		
-		_init();
+		_init(0);
 	}
 	
-	/** Empty constructor used by the copy method */
+	/**
+	 * Initiates a new game specifying the maze to start with.
+	 * 
+	 * @param seed Seed used for the pseudo-random numbers
+	 * @param initialMaze The maze to start the game with
+	 */
+	public Game(long seed,int initialMaze)
+	{						
+		this.seed=seed;
+		rnd=new Random(seed);
+		
+		_init(initialMaze);		
+	}
+	
+	/**
+	 * Empty constructor used by the copy method.
+	 */
 	public Game(){}
 	
-	private void _init()
+	/**
+	 * _init.
+	 *
+	 * @param initialMaze the initial maze
+	 */
+	private void _init(int initialMaze)
 	{
-		mazeIndex=score=currentLevelTime=levelCount=totalTime=0;
+		mazeIndex=initialMaze;
+		score=currentLevelTime=levelCount=totalTime=0;
 		ghostEatMultiplier=1;
 		gameOver=false;
+		enableGlobalReversals=true;
+		timeOfLastGlobalReversal=-1;
 		
 		_setPills(currentMaze=mazes[mazeIndex]);
 		_initGhosts();
@@ -93,6 +129,9 @@ public final class Game
 		pacman=new PacMan(currentMaze.initialPacManNodeIndex,MOVE.LEFT,NUM_LIVES,false);		
 	}
 	
+	/**
+	 * _new level reset.
+	 */
 	private void _newLevelReset()
 	{
 		mazeIndex=++mazeIndex%NUM_MAZES;
@@ -106,6 +145,9 @@ public final class Game
 		_levelReset();
 	}
 	
+	/**
+	 * _level reset.
+	 */
 	private void _levelReset()
 	{
 		ghostEatMultiplier=1;
@@ -113,9 +155,14 @@ public final class Game
 		_initGhosts();
 		
 		pacman.currentNodeIndex=currentMaze.initialPacManNodeIndex;
-		pacman.lastMoveMade=MOVE.LEFT;//MOVE.NEUTRAL;//
+		pacman.lastMoveMade=MOVE.LEFT;
 	}
 	
+	/**
+	 * _set pills.
+	 *
+	 * @param maze the maze
+	 */
 	private void _setPills(Maze maze)
 	{
 		pills=new BitSet(currentMaze.pillIndices.length);
@@ -124,6 +171,9 @@ public final class Game
 		powerPills.set(0,currentMaze.powerPillIndices.length);
 	}
 	
+	/**
+	 * _init ghosts.
+	 */
 	private void _initGhosts()
 	{
 		ghosts=new EnumMap<GHOST, Ghost>(GHOST.class);
@@ -162,6 +212,10 @@ public final class Game
 				sb.append("1");
 			else
 				sb.append("0");
+		
+		sb.append(",");
+		
+		sb.append(timeOfLastGlobalReversal);
 		
 		return sb.toString();
 	}
@@ -208,6 +262,14 @@ public final class Game
 				powerPills.set(i);		
 			else
 				powerPills.clear(i);
+		
+		index++;
+		
+		try {
+			timeOfLastGlobalReversal=Integer.parseInt(values[index]);
+		} catch (Exception e) {
+			timeOfLastGlobalReversal = 0;
+		}
 	}
 	
 	/**
@@ -233,6 +295,8 @@ public final class Game
 		copy.score=score;
 		copy.ghostEatMultiplier=ghostEatMultiplier;
 		copy.gameOver=gameOver;
+		copy.enableGlobalReversals=enableGlobalReversals;
+		copy.timeOfLastGlobalReversal=timeOfLastGlobalReversal;
 		
 		copy.pacman=pacman.copy();
 		
@@ -272,7 +336,7 @@ public final class Game
 	{
 		_updatePacMan(pacManMove);					//move pac-man		
 		_eatPill();									//eat a pill
-		_eatPowerPill();				//eat a power pill
+		_eatPowerPill();							//eat a power pill
 	}
 	
 	/**
@@ -282,7 +346,7 @@ public final class Game
 	 */
 	public void updateGhosts(EnumMap<GHOST,MOVE> ghostMoves)
 	{
-		_updateGhosts(ghostMoves);//,globalReverse);	//move ghosts		
+		_updateGhosts(ghostMoves);					//move ghosts		
 	}
 	
 	/**
@@ -324,6 +388,9 @@ public final class Game
 		_checkLevelState();							//check if level/game is over
 	}
 	
+	/**
+	 * _update lair times.
+	 */
 	private void _updateLairTimes()
 	{
 		for(Ghost ghost : ghosts.values())
@@ -332,6 +399,9 @@ public final class Game
 					ghost.currentNodeIndex=currentMaze.initialGhostNodeIndex;
 	}
 	
+	/**
+	 * _update pac man extra life.
+	 */
 	private void _updatePacManExtraLife()
 	{
 		if(!pacman.hasReceivedExtraLife && score>=EXTRA_LIFE_SCORE)	//award 1 extra life at 10000 points
@@ -341,6 +411,11 @@ public final class Game
 		}
 	}
 	
+	/**
+	 * _update pac man.
+	 *
+	 * @param move the move
+	 */
 	private void _updatePacMan(MOVE move)
 	{
 		pacman.lastMoveMade=_correctPacManDir(move);		
@@ -348,6 +423,12 @@ public final class Game
 			currentMaze.graph[pacman.currentNodeIndex].neighbourhood.get(pacman.lastMoveMade);
 	}
 
+	/**
+	 * _correct pac man dir.
+	 *
+	 * @param direction the direction
+	 * @return the mOVE
+	 */
 	private MOVE _correctPacManDir(MOVE direction)
 	{
 		Node node=currentMaze.graph[pacman.currentNodeIndex];
@@ -366,6 +447,11 @@ public final class Game
 		}
 	}
 
+	/**
+	 * _update ghosts.
+	 *
+	 * @param moves the moves
+	 */
 	private void _updateGhosts(EnumMap<GHOST,MOVE> moves)
 	{
 		if(moves==null)
@@ -402,6 +488,13 @@ public final class Game
 		}
 	}
 	
+	/**
+	 * _check ghost dir.
+	 *
+	 * @param ghost the ghost
+	 * @param direction the direction
+	 * @return the mOVE
+	 */
 	private MOVE _checkGhostDir(Ghost ghost,MOVE direction)
 	{
 		//Gets the neighbours of the node with the node that would correspond to reverse removed
@@ -422,6 +515,9 @@ public final class Game
 		}
 	}
 			
+	/**
+	 * _eat pill.
+	 */
 	private void _eatPill()
 	{
 		int pillIndex=currentMaze.graph[pacman.currentNodeIndex].pillIndex;
@@ -433,6 +529,9 @@ public final class Game
 		}
 	}
 	
+	/**
+	 * _eat power pill.
+	 */
 	private void _eatPowerPill()
 	{
 		globalReverse=false;
@@ -455,10 +554,16 @@ public final class Game
 			
 			globalReverse=true;
 		}
-		else if(currentLevelTime>1 && Math.random()<GHOST_REVERSAL)	//random ghost reversal
-			globalReverse=true;		
+		else if(currentLevelTime>1 && Math.random()<GHOST_REVERSAL && enableGlobalReversals)	//random ghost reversal
+		{
+			timeOfLastGlobalReversal=totalTime;
+			globalReverse=true;
+		}
 	}
 
+	/**
+	 * _feast.
+	 */
 	private void _feast()
 	{		
 		for(Ghost ghost : ghosts.values())
@@ -493,13 +598,16 @@ public final class Game
 				ghost.edibleTime--;
 	}
 	
+	/**
+	 * _check level state.
+	 */
 	private void _checkLevelState()
 	{
 		//if all pills have been eaten or the time is up...
 		if((pills.isEmpty() && powerPills.isEmpty()) || currentLevelTime>=LEVEL_LIMIT)
 		{
 			//award any remaining pills to Ms Pac-Man
-			score+=(int)(0.5f*(PILL*pills.cardinality()+POWER_PILL*powerPills.cardinality()));			 
+			score+=(int)(PILL_REWARD_REDUCTION*(PILL*pills.cardinality()+POWER_PILL*powerPills.cardinality()));			 
 			
 			//put a cap on the total number of levels played
 			if(levelCount+1==MAX_LEVELS)
@@ -514,6 +622,16 @@ public final class Game
 	/////////////////////////////////////////////////////////////////////////////
 
 	/**
+	 * Returns the time when the last global reversal event took place.
+	 * 
+	 * @return time the last global reversal event took place (not including power pill reversals)
+	 */
+	public int getTimeOfLastGlobalReversal()
+	{
+		return timeOfLastGlobalReversal;
+	}
+	
+	/**
 	 * Checks whether the game is over or not: all lives are lost or 16 levels have been 
 	 * played. The variable is set by the methods _feast() and _checkLevelState().
 	 *
@@ -522,6 +640,16 @@ public final class Game
 	public boolean gameOver()
 	{
 		return gameOver;
+	}
+	
+	/**
+	 * Returns the current maze of the game.
+	 * 
+	 * @return The current maze.
+	 */
+	public Maze getCurrentMaze()
+	{
+		return currentMaze;
 	}
 	
 	/**
@@ -654,7 +782,7 @@ public final class Game
 	}
 	
 	/**
-	 * Returns the indices to all the nodes that have pills
+	 * Returns the indices to all the nodes that have pills.
 	 *
 	 * @return the pill indices
 	 */
@@ -664,7 +792,7 @@ public final class Game
 	}
 	
 	/**
-	 * Returns the indices to all the nodes that have power pills
+	 * Returns the indices to all the nodes that have power pills.
 	 *
 	 * @return the power pill indices
 	 */
@@ -674,7 +802,7 @@ public final class Game
 	}
 	
 	/**
-	 * Current node index of Ms Pac-Man
+	 * Current node index of Ms Pac-Man.
 	 *
 	 * @return the pacman current node index
 	 */
@@ -684,7 +812,7 @@ public final class Game
 	}
 	
 	/**
-	 * Current node index of Ms Pac-Man
+	 * Current node index of Ms Pac-Man.
 	 *
 	 * @return the pacman last move made
 	 */
@@ -694,7 +822,7 @@ public final class Game
 	}
 	
 	/**
-	 * Lives that remain for Ms Pac-Man
+	 * Lives that remain for Ms Pac-Man.
 	 *
 	 * @return the number of lives remaining
 	 */
@@ -704,7 +832,7 @@ public final class Game
 	}
 	
 	/**
-	 * Current node at which the specified ghost resides
+	 * Current node at which the specified ghost resides.
 	 *
 	 * @param ghostType the ghost type
 	 * @return the ghost current node index
@@ -715,7 +843,7 @@ public final class Game
 	}
 
 	/**
-	 * Current direction of the specified ghost
+	 * Current direction of the specified ghost.
 	 *
 	 * @param ghostType the ghost type
 	 * @return the ghost last move made
@@ -726,7 +854,7 @@ public final class Game
 	}
 	
 	/**
-	 * Returns the edible time for the specified ghost
+	 * Returns the edible time for the specified ghost.
 	 *
 	 * @param ghostType the ghost type
 	 * @return the ghost edible time
@@ -737,7 +865,7 @@ public final class Game
 	}
 	
 	/**
-	 * Simpler check to see if a ghost is edible
+	 * Simpler check to see if a ghost is edible.
 	 *
 	 * @param ghostType the ghost type
 	 * @return true, if is ghost edible
@@ -748,7 +876,7 @@ public final class Game
 	}
 
 	/**
-	 * Returns the score of the game
+	 * Returns the score of the game.
 	 *
 	 * @return the score
 	 */
@@ -758,7 +886,7 @@ public final class Game
 	}
 	
 	/**
-	 * Returns the time of the current level (important with respect to LEVEL_LIMIT)
+	 * Returns the time of the current level (important with respect to LEVEL_LIMIT).
 	 *
 	 * @return the current level time
 	 */
@@ -768,7 +896,7 @@ public final class Game
 	}
 	
 	/**
-	 * Total time the game has been played for (at most LEVEL_LIMIT*MAX_LEVELS)
+	 * Total time the game has been played for (at most LEVEL_LIMIT*MAX_LEVELS).
 	 *
 	 * @return the total time
 	 */
@@ -818,7 +946,7 @@ public final class Game
 	}
 	
 	/**
-	 * Time left that the specified ghost will spend in the lair
+	 * Time left that the specified ghost will spend in the lair.
 	 *
 	 * @param ghostType the ghost type
 	 * @return the ghost lair time
@@ -865,7 +993,7 @@ public final class Game
 	}
 
 	/**
-	 * If in lair (getLairTime(-)>0) or if not at junction
+	 * If in lair (getLairTime(-)>0) or if not at junction.
 	 *
 	 * @param ghostType the ghost type
 	 * @return true, if successful
@@ -949,13 +1077,46 @@ public final class Game
     	
     	return neighbour==null ? -1 : neighbour;
     }
+    
+	/**
+	 * A method to enable or disable global reversals. This is set only at the very beginning of the game and does not
+	 * reset when a new level is encountered - use with care.
+	 * 
+	 * @param value Whether to allow for global reversals to take place.
+	 */
+	public void setGlobalReversals(boolean value)
+	{
+		this.enableGlobalReversals=value;
+	}
+	
+	/**
+	 * Method that returns the direction to take given a node index and an index of a neighbouring
+	 * node. Returns null if the neighbour is invalid.
+	 *
+	 * @param currentNodeIndex The current node index.
+	 * @param neighbourNodeIndex The direct neighbour (node index) of the current node.
+	 * @return the move to make to reach direct neighbour
+	 */
+	public MOVE getMoveToMakeToReachDirectNeighbour(int currentNodeIndex,int neighbourNodeIndex)
+	{
+		for(MOVE move : MOVE.values())
+		{
+			if(currentMaze.graph[currentNodeIndex].neighbourhood.containsKey(move) 
+					&& currentMaze.graph[currentNodeIndex].neighbourhood.get(move)==neighbourNodeIndex)
+			{
+				return move;
+			}
+		}
+		
+		return null;
+	}
 	
 	/////////////////////////////////////////////////////////////////////////////
 	///////////////////  Helper Methods (computational)  ////////////////////////
 	/////////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Returns the PATH distance from any node to any other node
+	 * Returns the PATH distance from any node to any other node.
 	 *
 	 * @param fromNodeIndex the from node index
 	 * @param toNodeIndex the to node index
@@ -1008,6 +1169,27 @@ public final class Game
 		switch(distanceMeasure)
 		{
 			case PATH: return getShortestPathDistance(fromNodeIndex,toNodeIndex);
+			case EUCLID: return getEuclideanDistance(fromNodeIndex,toNodeIndex);
+			case MANHATTAN: return getManhattanDistance(fromNodeIndex,toNodeIndex);
+		}
+		
+		return -1;
+	}
+	
+	/**
+	 * Returns the distance between two nodes taking reversals into account.
+	 *
+	 * @param fromNodeIndex the index of the originating node
+	 * @param toNodeIndex the index of the target node
+	 * @param lastMoveMade the last move made
+	 * @param distanceMeasure the distance measure to be used
+	 * @return the distance between two nodes.
+	 */
+	public double getDistance(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade,DM distanceMeasure)
+	{
+		switch(distanceMeasure)
+		{
+			case PATH: return getApproximateShortestPathDistance(fromNodeIndex,toNodeIndex,lastMoveMade);
 			case EUCLID: return getEuclideanDistance(fromNodeIndex,toNodeIndex);
 			case MANHATTAN: return getManhattanDistance(fromNodeIndex,toNodeIndex);
 		}
@@ -1186,6 +1368,64 @@ public final class Game
 		
 		return move;
 	}
+	
+	/**
+	 * Gets the exact next move towards target taking into account reversals. This uses the pre-computed paths.
+	 *
+	 * @param fromNodeIndex The node index from which to move (i.e., current position)
+	 * @param toNodeIndex The target node index
+	 * @param lastMoveMade The last move made
+	 * @param distanceMeasure the distance measure to be used
+	 * @return the next move towards target
+	 */
+	public MOVE getNextMoveTowardsTarget(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade, DM distanceMeasure)
+	{
+		MOVE move=null;
+
+		double minDistance=Integer.MAX_VALUE;
+
+		for(Entry<MOVE,Integer> entry : currentMaze.graph[fromNodeIndex].allNeighbourhoods.get(lastMoveMade).entrySet())
+		{
+			double distance=getDistance(entry.getValue(),toNodeIndex,lastMoveMade,distanceMeasure);
+								
+			if(distance<minDistance)
+			{
+				minDistance=distance;
+				move=entry.getKey();	
+			}
+		}
+		
+		return move;
+	}
+	
+	/**
+	 * Gets the exact next move away from target taking into account reversals. This uses the pre-computed paths.
+	 *
+	 * @param fromNodeIndex The node index from which to move (i.e., current position)
+	 * @param toNodeIndex The target node index
+	 * @param lastMoveMade The last move made
+	 * @param distanceMeasure the distance measure to be used
+	 * @return the next move away from target
+	 */
+	public MOVE getNextMoveAwayFromTarget(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade, DM distanceMeasure)
+	{
+		MOVE move=null;
+
+		double maxDistance=Integer.MIN_VALUE;
+
+		for(Entry<MOVE,Integer> entry : currentMaze.graph[fromNodeIndex].allNeighbourhoods.get(lastMoveMade).entrySet())
+		{
+			double distance=getDistance(entry.getValue(),toNodeIndex,lastMoveMade,distanceMeasure);
+								
+			if(distance>maxDistance)
+			{
+				maxDistance=distance;
+				move=entry.getKey();	
+			}
+		}
+		
+		return move;
+	}
 
 	/**
 	 * Gets the A* path considering previous moves made (i.e., opposing actions are ignored)
@@ -1197,10 +1437,7 @@ public final class Game
 	 */
 	public int[] getAStarPath(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade)
 	{
-		int[] path=currentMaze.astar.computePathsAStar(fromNodeIndex,toNodeIndex,lastMoveMade,this);
-		currentMaze.astar.resetGraph();
-		
-		return path;
+		return getApproximateShortestPath(fromNodeIndex,toNodeIndex,lastMoveMade);
 	}
 	
 	/**
@@ -1212,23 +1449,7 @@ public final class Game
 	 */
 	public int[] getShortestPath(int fromNodeIndex,int toNodeIndex)
 	{
-		int currentNodeIndex=fromNodeIndex;
-		ArrayList<Integer> path=new ArrayList<Integer>();
-		MOVE lastMove;
-
-		while(currentNodeIndex!=toNodeIndex)
-		{
-			path.add(currentNodeIndex);
-			lastMove=getNextMoveTowardsTarget(currentNodeIndex,toNodeIndex,DM.PATH);
-			currentNodeIndex=currentMaze.graph[currentNodeIndex].neighbourhood.get(lastMove);
-		}
-
-		int[] arrayPath=new int[path.size()];
-
-		for(int i=0;i<arrayPath.length;i++)
-			arrayPath[i]=path.get(i);
-
-		return arrayPath;
+		return caches[mazeIndex].getPathFromA2B(fromNodeIndex,toNodeIndex);
 	}
 	
 	/**
@@ -1239,29 +1460,30 @@ public final class Game
 	 * @param fromNodeIndex The node index from where to start (i.e., current position)
 	 * @param toNodeIndex The target node index
 	 * @param lastMoveMade The last move made
-	 * @return the approximate shortest path from start to target
+	 * @return the shortest path from start to target
 	 */
 	public int[] getApproximateShortestPath(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade)
 	{
 		if(currentMaze.graph[fromNodeIndex].neighbourhood.size()==0)//lair
 			return new int[0];
 
-		int currentNodeIndex=fromNodeIndex;
-		ArrayList<Integer> path=new ArrayList<Integer>();
-		MOVE lastMove=lastMoveMade;
+		return caches[mazeIndex].getPathFromA2B(fromNodeIndex,toNodeIndex,lastMoveMade);
+	}
+	
+	/**
+	 * Similar to getApproximateShortestPath) but returns the distance of the path only. It is slightly
+	 * more efficient.
+	 *  
+	 * @param fromNodeIndex The node index from where to start (i.e., current position)
+	 * @param toNodeIndex The target node index
+	 * @param lastMoveMade The last move made
+	 * @return the exact distance of the path
+	 */
+	public int getApproximateShortestPathDistance(int fromNodeIndex,int toNodeIndex,MOVE lastMoveMade)
+	{
+		if(currentMaze.graph[fromNodeIndex].neighbourhood.size()==0)//lair
+			return 0;
 
-		while(currentNodeIndex!=toNodeIndex)
-		{
-			path.add(currentNodeIndex);			
-			lastMove=getApproximateNextMoveTowardsTarget(currentNodeIndex,toNodeIndex,lastMove,DM.PATH);
-			currentNodeIndex=currentMaze.graph[currentNodeIndex].neighbourhood.get(lastMove);
-		}
-
-		int[] arrayPath=new int[path.size()];
-
-		for(int i=0;i<arrayPath.length;i++)
-			arrayPath[i]=path.get(i);
-
-		return arrayPath;
+		return caches[mazeIndex].getPathDistanceFromA2B(fromNodeIndex,toNodeIndex,lastMoveMade);
 	}
 }

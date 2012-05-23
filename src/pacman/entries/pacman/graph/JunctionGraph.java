@@ -367,7 +367,7 @@ public class JunctionGraph {
 		// update distances
 		boolean improvedDistance = updateDist(start, startMove, end, lastMove, currDist);
 		//if (visited[end.junctionIndex] && !improvedDistance) {
-		if (maxDist <= 0) {
+		if (maxDist <= 0 /*|| !improvedDistance*/) {
 			return;
 		}
 		visited[end.junctionIndex] = true;
@@ -402,6 +402,9 @@ public class JunctionGraph {
 					if (firstMove != lastMove.opposite()) {
 						int m2 = firstMove.ordinal();
 						int[] arr = ghostDist[m1][start.junctionIndex][m2];
+						if (dist <= arr[end.junctionIndex]) {
+							improvedDistance = true;
+						}
 						if (dist < arr[end.junctionIndex]) {
 							improvedDistance = true;
 							int path1Index = pathIndex;

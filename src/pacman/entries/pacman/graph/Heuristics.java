@@ -103,7 +103,7 @@ public class Heuristics {
 		}
 		int factor = isWeakOpponent() ? 300 : 150;
 		int leftNearEnd = game.getCurrentLevelTime() - 2800 + factor*b.nrPowerPillsOnBoard;
-		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-250*b.nrPowerPillsOnBoard) {
+		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-factor*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
 			if (Search.pacmanEvaluation) {
 				if (isWeakOpponent()) {

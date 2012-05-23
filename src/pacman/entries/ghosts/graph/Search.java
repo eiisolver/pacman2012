@@ -605,7 +605,10 @@ public class Search {
 			} else {
 				value += 4*graphBonus;
 				if (mustTakePowerPillToSurvive && heuristics.getPowerPillScore() < 0) {
-					value += heuristics.getPowerPillScore();
+					value += heuristics.getPowerPillScore()/2 - 300 + (currDepth + distToClosestPowerPill());
+				}
+				if (pacmanCanGetToPowerPill) {
+					value += 300;
 				}
 			}
 			/*if (nrInLair >= 3 && nrEdibleGhosts == 0 && game.getCurrentLevel() == 0) {
@@ -1029,6 +1032,24 @@ public class Search {
 		}
 		return canReachPowerPill;
 	}
+
+	/**
+	 * Returns pacman's distance to the closest power pill
+	 */
+	private static int distToClosestPowerPill() {
+		int dist = 1000;
+		for (int i = 0; i < b.nrPowerPills; ++i) {
+			int powerPill = b.powerPillLocation[i];
+			if (b.containsPowerPill[powerPill]) {
+				int pacmanDist = game.getShortestPathDistance(b.pacmanLocation, powerPill);
+				if (pacmanDist < dist) {
+					dist = pacmanDist;
+				}
+			}
+		}
+		return dist;
+	}
+	
 	public static void log(String msg) {
 		if (!log) {
 			System.err.println("Should not be called: log " + msg);
