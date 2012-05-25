@@ -124,6 +124,16 @@ public class JunctionGraph {
 		return null;
 	}
 	
+	public BigEdge findEdge(Node junction1, Node junction2) {
+		for (BigEdge edge : edges){
+			if ((edge.endpoints[0] == junction1 && edge.endpoints[1] == junction2)
+					|| (edge.endpoints[0] == junction2 && edge.endpoints[1] == junction1)) {
+				return edge;
+			}
+		}
+		return null;
+	}
+	
 	/**
 	 * Constructs the junction graph from the given maze.
 	 * @param maze

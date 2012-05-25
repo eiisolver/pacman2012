@@ -32,6 +32,7 @@ public class TestMatch {
 	
 	public void runTests() throws Exception {
 		Log.logFile = new File("static_eval.log");
+		runFile("level4.pos", true);
 		runFile("test.pos", true);
 		runFile("test2.pos", true);
 		runFile("test3.pos", true);

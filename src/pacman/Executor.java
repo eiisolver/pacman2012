@@ -71,9 +71,10 @@ public class Executor
 		//run the game in asynchronous mode.
 		boolean visual=true;
 		//exec.runGameTimed(new MyPacMan(),new MyGhostsV3(),visual);
-		//exec.runGame(new MyPacMan(),new MyGhostsV6(),visual, 40);
-		//exec.runGame(new MyPacMan(),new Legacy2TheReckoning(),visual, 40);
-		exec.runGame(new MyPacMan(),new MyGhosts(),visual, 25);
+		exec.runGame(new MyPacMan(),new AggressiveGhosts(),visual, 5);
+		//exec.runGame(new MyPacMan(),new Legacy(),visual, 5);
+		//exec.runGame(new MyPacMan(),new Legacy2TheReckoning(),visual, 5);
+		//exec.runGame(new MyPacMan(),new MyGhostsV9(),visual, 5);
 		//exec.runGameTimed(new HumanController(new KeyBoardInput()),new MyGhosts(),visual);			
 		//*/
 		String fileName="replay.txt";

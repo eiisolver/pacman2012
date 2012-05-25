@@ -96,14 +96,17 @@ public class Heuristics {
 		int weakScore = 0;
 		if (isWeakOpponent()) {
 			if (game.getCurrentLevel() < 8) {
-				weakScore = -4*Constants.GHOST_EAT_SCORE*POINT_FACTOR/2;
+				weakScore = -3*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 			} else {
-				weakScore = -((20 - game.getCurrentLevel())*Constants.GHOST_EAT_SCORE*POINT_FACTOR)/8;
+				weakScore = -((19 - game.getCurrentLevel())*Constants.GHOST_EAT_SCORE*POINT_FACTOR)/4;
 			}
 		}
-		int factor = isWeakOpponent() ? 300 : 150;
+		int factor = isWeakOpponent() ? 300 : 200;
 		int leftNearEnd = game.getCurrentLevelTime() - 2800 + factor*b.nrPowerPillsOnBoard;
-		if (/*(100*b.nrPillsOnBoard)/b.nrPills > 30 + 5*b.nrPowerPillsOnBoard &&*/ game.getCurrentLevelTime() < 2600-factor*b.nrPowerPillsOnBoard) {
+		if (existNonKilling) {
+			// discourage eating power pills if there are still edible ghosts
+			powerPillScore = -15000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
+		} else if (game.getCurrentLevelTime() < 2600-factor*b.nrPowerPillsOnBoard) {
 			// discourage eating power pills in the beginning
 			if (Search.pacmanEvaluation) {
 				if (isWeakOpponent()) {
@@ -114,16 +117,13 @@ public class Heuristics {
 			} else {
 				powerPillScore = -2*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 			}
-		} else if (existNonKilling) {
-			// discourage eating power pills if there are still edible ghosts
-			powerPillScore = -15000;//-8*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 		} else if (leftNearEnd > 0) {
 			powerPillScore = Constants.GHOST_EAT_SCORE + leftNearEnd;
 		} else {
 			powerPillScore = isWeakOpponent() ? weakScore : -500;
 		}
-		//System.out.println("power pill score: " + powerPillScore 
-		//		+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
+		System.out.println("power pill score: " + powerPillScore 
+				+ ", exist: " + existNonKilling + ", time: " + game.getCurrentLevelTime() + ", powerpillsOnBoard: " + b.nrPowerPillsOnBoard);
 	}
 
 	private boolean existNonKillingGhosts() {

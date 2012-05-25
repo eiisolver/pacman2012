@@ -1,6 +1,7 @@
 package pacman.entries.ghosts.graph;
 
 import java.util.*;
+
 import static pacman.game.Constants.EAT_DISTANCE;
 import static pacman.game.Constants.GHOST_EAT_SCORE;
 
@@ -45,6 +46,9 @@ public class Search {
 	// helper variables used when calculating shortest path to all edible ghosts
 	private static int[] edibleGhosts = new int[4];
 	private static boolean[] edibleVisited = new boolean[4];
+	/** Helper variable, contains for every edible ghost the distance to the closest non-edible ghost */
+	private static int[] ghostToNearestGhostDist = new int[4];
+	private static int[] pathLengths = new int[4];
 	private static int nrEdibleGhosts = 0;
 	/** pacmanKillerMoves[node] contains indices into nodes[node].neighbours. */
 	public static int[][] pacmanKillerMoves;
@@ -488,7 +492,7 @@ public class Search {
 		int longestDist = 0;
 		if (nrEdibleGhosts > 0) {
 			if(log)log("nrEdible = " + nrEdibleGhosts);
-			if (pacmanEvaluation) {
+			/*if (pacmanEvaluation) {
 				// pacman will move to closest edible ghost
 				int shortestDist = 500;
 				int nearestGhost = -1;
@@ -522,23 +526,26 @@ public class Search {
 				if (shortestDist < maxEdibleTime) {
 					edibleBonus = 10*GHOST_EAT_SCORE-25*shortestDist;
 					if(log)log("edible bonus: " + edibleBonus);
-					/*boolean killingGhostIsCloser = false;
+				}
+				
+			} else {*/
+				// calculate distance from edible ghosts to non-edible ghosts
+				for (int g = 0; g < nrEdibleGhosts; ++g) {
+					ghostToNearestGhostDist[g] = 1000;
 					for (MyGhost ghost : b.ghosts) {
-						if (ghost.canKill()) {
-							if (game.getShortestPathDistance(ghost.currentNodeIndex, edibleGhosts[nearestGhost]) < shortestDist) {
-								if(log)log("killing ghost is closer ");
-								killingGhostIsCloser = true;
-								break;
+						if (ghost.edibleTime == 0) {
+							int dist;
+							if (ghost.lairTime == 0) {
+								dist = game.getShortestPathDistance(ghost.currentNodeIndex, edibleGhosts[g]);
+							} else {
+								dist = ghost.lairTime + game.getShortestPathDistance(game.getGhostInitialNodeIndex(), edibleGhosts[g]);
+							}
+							if (dist < ghostToNearestGhostDist[g]) {
+								ghostToNearestGhostDist[g] = dist;
 							}
 						}
 					}
-					if (!killingGhostIsCloser) {
-						edibleBonus = 10*GHOST_EAT_SCORE-10*shortestDist;
-						if(log)log("edible bonus: " + edibleBonus);
-					}*/
 				}
-				
-			} else {
 				// ghosts will try to spread out
 				int pathLength = 0; // will contain the length of the path that eats all ghosts
 				int distToGhost1 = 1000;
@@ -551,12 +558,18 @@ public class Search {
 						if (!edibleVisited[g]) {
 							int dist = game.getShortestPathDistance(currNode, edibleGhosts[g]);
 							if (dist < shortestDist) {
-								shortestDist = dist;
-								nearestGhost = g;
+								if (ghostToNearestGhostDist[g]+2 <= dist) {
+									dist += 30; // can this be improved?
+								}
+								if (dist < shortestDist) {
+									shortestDist = dist;
+									nearestGhost = g;
+								}
 							}
 						}
 					}
 					pathLength += shortestDist;
+					pathLengths[nrGhostsInRange] = pathLength;
 					if (currNode == b.pacmanLocation) {
 						distToGhost1 = shortestDist;
 					}
@@ -569,10 +582,18 @@ public class Search {
 				if (nrGhostsInRange == 0) {
 					edibleBonus = 0;
 				} else {
-					edibleBonus = 1000 -5*distToGhost1 -5*pathLength + 300*nrGhostsInRange;
+					if (pacmanEvaluation) {
+						for (int i = 0; i < nrGhostsInRange; ++i) {
+							edibleBonus += (GHOST_EAT_SCORE * (maxEdibleTime -pathLengths[i]))/maxEdibleTime;
+						}
+						//edibleBonus = 6*GHOST_EAT_SCORE*nrGhostsInRange - 10*distToGhost1 -5*pathLength ;
+					} else {
+						edibleBonus = 1000 -5*distToGhost1 -5*pathLength + 300*nrGhostsInRange;
+					}
 				}
-				if(log)log("pathLenght: " + pathLength + ", nrGhostsInRange: " + nrGhostsInRange + ",edibleBonus: " + edibleBonus);
-			}
+				if(log)log("pathLenght: " + pathLength + ", nrGhostsInRange: " + nrGhostsInRange 
+						+ ",edibleBonus: " + edibleBonus + ", distToGhost1: " + distToGhost1 + ", pathLen: " + pathLength);
+			//}
 		}
 		// being on a long big edge is potentially dangerous
 		int edgeLength;
@@ -635,7 +656,7 @@ public class Search {
 		}
 		p.bestValue = value;
 		// hook to add some ugly extra evaluation stuff
-		if (evaluationExtra != null) {
+		if (evaluationExtra != null && Math.abs(value) < PACMAN_WILL_DIE/2) {
 			evaluationExtra.evaluateExtra(p);
 		}
 		if (!movePacman) {
@@ -737,6 +758,25 @@ public class Search {
 
 	}
 	
+	/**
+	 * Returns distance to the ghost that is farthest away,
+	 * or -1 if there is a ghost in the lair or an edible ghost.
+	 * @return
+	 */
+	public static int distToFarthestGhostInTrain() {
+		int dist = 0;
+		for (MyGhost ghost : b.ghosts) {
+			if (ghost.canKill()) {
+				int ghostDist = game.getShortestPathDistance(ghost.currentNodeIndex, b.pacmanLocation);
+				if (ghostDist > dist) {
+					dist = ghostDist;
+				}
+			} else {
+				return -1;
+			}
+		}
+		return dist;
+	}
 	
 	/**
 	 * (for test purposes)
@@ -1262,7 +1302,7 @@ public class Search {
 	}
 	
 	public static class StaticEvaluator2 {
-		private static final boolean statLog = log && true;
+		private static final boolean statLog = log && false;
 		BorderEdge[] borders = new BorderEdge[50];
 		int nrBorders;
 		Node[] pacmanNodes = new Node[100];
@@ -1478,9 +1518,23 @@ public class Search {
 						// unless ghost is on same edge as pacman and already past pacman.
 						Node pacmanNode = nodes[b.pacmanLocation];
 						if (pacmanNode.edge != ghostNode.edge || ghostNode.isOnPath(pacmanNode, ghost.lastMoveMade)) {
-							borderEdge.closerGhosts |= 1 << g;
-							borderEdge.ghostDist[g] = 0;
-							if (statLog)log(otherJunction +": ghost on same edge, " + ghostNode);
+							boolean closer = ghost.edibleTime == 0;
+							if (!closer) {
+								// an edible ghost close enough to pacman cannot stop pacman
+								int ghostToPacmanDist;
+								if (pacmanNode.edge == ghostNode.edge) {
+									// pacman and ghost on same edge
+									ghostToPacmanDist = Math.abs(pacmanNode.edgeIndex - ghostNode.edgeIndex);
+								} else {
+									ghostToPacmanDist = pacmanDist + ghostNode.getDistToNextJunction(ghost.lastMoveMade);
+								}
+								closer = 3*ghost.edibleTime + EAT_DISTANCE < 2*ghostToPacmanDist;
+							}
+							if (closer) {
+								borderEdge.closerGhosts |= 1 << g;
+								borderEdge.ghostDist[g] = 0;
+								if (statLog)log(otherJunction +": ghost on same edge, " + ghostNode);
+							}
 						}
 					} else {
 						int d = graph.getGhostDistToJunction(ghost.currentNodeIndex, ghost.lastMoveMade, 

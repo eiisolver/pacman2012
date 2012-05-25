@@ -1,6 +1,5 @@
 package pacman.entries.ghosts.graph;
 
-import pacman.entries.ghosts.graph.Search.StaticEvaluator2;
 
 /**
  * Transposition table, contains search results of many positions.

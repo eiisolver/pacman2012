@@ -23,6 +23,7 @@ public class MyPacMan extends Controller<MOVE>
 	private MOVE myMove=MOVE.NEUTRAL;
 	public static final boolean log = Search.log;
 	private int nodeToClosestPill;
+	private MOVE nextMoveInTrap;
 	
 	static {
 		if (log) {
@@ -48,6 +49,9 @@ public class MyPacMan extends Controller<MOVE>
 					if (Search.plyInfo[2].savedBoard.pacmanLocation == nodeToClosestPill) {
 						p.bestValue += 15;
 					}
+					if (Search.plyInfo[2].savedBoard.pacmanLastMove == nextMoveInTrap) {
+						p.bestValue += 300;
+					}
 				}
 			};
 			System.out.println("Update junction graph");
@@ -58,6 +62,7 @@ public class MyPacMan extends Controller<MOVE>
 			board.initHash();
 			board.graph = jgraph;
 			Search.update(board, jgraph, game);
+			GhostTrap.updateLevel(game, board);
 		}
 		lastMazeIndex = game.getMazeIndex();
 		long startTime = System.currentTimeMillis();
@@ -67,6 +72,16 @@ public class MyPacMan extends Controller<MOVE>
 			jgraph.print(game, board);
 		}
 		nodeToClosestPill = game.getNeighbour(game.getPacmanCurrentNodeIndex(), getNearestPillMove(game, timeDue));
+		nextMoveInTrap = GhostTrap.rigTrap(game, board);
+		if (nextMoveInTrap != null) {
+			System.out.println("Set up trap; move to " + nextMoveInTrap);
+			Search.heuristics.updateForNewMove(game, board);
+			if (Search.heuristics.isWeakOpponent()) {
+				System.out.println("Move: " + game.getCurrentLevelTime() 
+						+ " L" + game.getCurrentLevel());
+				return nextMoveInTrap;
+			}
+		}
 		//System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
 		Search.searchIterationFinished = new Runnable() {
 
@@ -101,7 +116,7 @@ public class MyPacMan extends Controller<MOVE>
 		}
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time: " + (endTime - startTime) + " ms");
-		if (true) {
+		if (false) {
 			List<Integer> visitedList = new ArrayList<Integer>();
 			for (int i = 0; i < jgraph.nodes.length; ++i) {
 				if (Search.pacmanVisited[i]) {
