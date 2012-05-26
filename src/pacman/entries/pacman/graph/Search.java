@@ -13,6 +13,7 @@ import pacman.game.Constants.MOVE;
 
 public class Search {
 	public static final boolean log = false;
+	public static final boolean stopSearchWhenLogging = false;
 	/**
 	 * If true, we use pacman evaluation function.
 	 */
@@ -23,7 +24,7 @@ public class Search {
 	/** score (for ghosts) when we know for sure pacman will die */
 	public static final int PACMAN_DIES_VALUE = MAX_VALUE/2;
 	public static final int PACMAN_WILL_DIE = MAX_VALUE/4;
-	public static final int MAX_PLY = 700;
+	public static final int MAX_PLY = 1000;
 	public static PlyInfo[] plyInfo = new PlyInfo[MAX_PLY];
 	/** True if pacman moves at even plies (and ghosts at odd plies) */
 	public static boolean pacmanMovesFirst = false;
@@ -116,6 +117,7 @@ public class Search {
 		}
 		pacmanVisited = new boolean[nodes.length];
 		staticEval2.update();
+		TransposTable.clear();
 	}
 	
 	public static void searchMove(Game newGame, long timeDue) {
@@ -160,7 +162,7 @@ public class Search {
 			long timeSpent = System.currentTimeMillis() - startTime;
 			stop = Math.abs(p.bestValue) >= PACMAN_WILL_DIE
 					|| startTime + timeSpent >= normalStopTime
-					|| log
+					|| (log && stopSearchWhenLogging)
 					;
 			// reduce max time if everything looks ok
 		    if (!stop && pacmanEvaluation && game.getCurrentLevel() > 1) {
@@ -219,7 +221,7 @@ public class Search {
 			p.score += value;
 			staticEval2.clear();
 			if (extendedSearchDepth > 0) {
-				if (p.budget <= -60) {
+				if (p.budget <= -60 || currDepth >= MAX_PLY - 4) {
 					// end of extended search reached; static check if pacman is in danger
 					value = checkPacmanHealth(p, movePacman);
 					TransposTable.storeStaticEval(p);
@@ -582,9 +584,23 @@ public class Search {
 				if (nrGhostsInRange == 0) {
 					edibleBonus = 0;
 				} else {
-					if (pacmanEvaluation) {
+					if (true || pacmanEvaluation) {
+						int maxScore = 8*GHOST_EAT_SCORE;
+						int threshold = maxEdibleTime/2;
+						if (maxEdibleTime - threshold < 2) {
+							threshold = maxEdibleTime;
+						}
 						for (int i = 0; i < nrGhostsInRange; ++i) {
-							edibleBonus += (GHOST_EAT_SCORE * (maxEdibleTime -pathLengths[i]))/maxEdibleTime;
+							int bonus;
+							if (pathLengths[i] <= threshold) {
+								bonus = maxScore - 2*pathLengths[i];
+							} else {
+								bonus = GHOST_EAT_SCORE + ((maxScore-GHOST_EAT_SCORE) * (pathLengths[i]-threshold))/(maxEdibleTime-threshold) - 2*pathLengths[i];
+							}
+							if (bonus >= 0) {
+								edibleBonus += bonus;
+							}
+							if(log)log("g: " + i + ", bonus: " + bonus + ", pathLen: " + pathLengths[i] + ", total: " + edibleBonus);
 						}
 						//edibleBonus = 6*GHOST_EAT_SCORE*nrGhostsInRange - 10*distToGhost1 -5*pathLength ;
 					} else {
@@ -592,7 +608,7 @@ public class Search {
 					}
 				}
 				if(log)log("pathLenght: " + pathLength + ", nrGhostsInRange: " + nrGhostsInRange 
-						+ ",edibleBonus: " + edibleBonus + ", distToGhost1: " + distToGhost1 + ", pathLen: " + pathLength);
+						+ ",edibleBonus: " + edibleBonus + ", distToGhost1: " + distToGhost1 + ", pathLen: " + pathLength + ", edibleTime: " + maxEdibleTime);
 			//}
 		}
 		// being on a long big edge is potentially dangerous

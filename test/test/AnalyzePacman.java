@@ -9,20 +9,26 @@ import pacman.game.Constants.MOVE;
 public class AnalyzePacman {
 	private static final int gameNr = DownloadAndView.gameNr;
 	private static int fromMoveNr = 0;
-	private static int toMoveNr = 100000;
+	private static int toMoveNr = 3200;
+	private static int fromLevel = 0;
+	private static int toLevel = 1;
 	private static int thinkTime = 40;
 
 	public static void main(String[] args) throws Exception {
 		MyPacMan pacman = new MyPacMan();
 		Game game = new Game();
 		List<String> states = DownloadAndView.load(gameNr);
-		for (int i = fromMoveNr; i < Math.min(toMoveNr, states.size()); ++i) {
+		for (int i = 0; i < states.size(); ++i) {
 			String state = states.get(i);
 			game.setGameState(state);
-			MOVE move = pacman.getMove(game, System.currentTimeMillis() + thinkTime);
-			System.out.println("Pacman moves " + move);
-			Log.println("Pacman moves " + move);
-			Log.flush();
+			int level = game.getCurrentLevel();
+			int moveNr = game.getCurrentLevelTime();
+			if (level >= fromLevel && level <= toLevel && moveNr >= fromMoveNr && moveNr <= toMoveNr) {
+				MOVE move = pacman.getMove(game, System.currentTimeMillis() + thinkTime);
+				System.out.println("Pacman moves " + move);
+				Log.println("Pacman moves " + move);
+				Log.flush();
+			}
 		}
 	}
 

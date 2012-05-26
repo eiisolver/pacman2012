@@ -4,10 +4,13 @@ import java.io.*;
 import java.util.*;
 
 public class DownloadAndView {
-	public static int gameNr = 1407527;
+	public static int gameNr = 1450145;
 	
 	public static List<String> load(int gameNr) throws Exception {
 		String fileName = "games/" + gameNr + ".txt";
+		if (gameNr < 0) {
+			fileName = "replay.txt";
+		}
 		ArrayList<String> result = new ArrayList<String>();
 		BufferedReader in = new BufferedReader(new FileReader(fileName));
 		for (String line = in.readLine(); line != null; line = in.readLine()) {

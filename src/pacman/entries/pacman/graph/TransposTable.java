@@ -40,6 +40,15 @@ public class TransposTable {
 			cachedStaticInfo[i] = new CachedStaticInfo();
 		}
 	}
+	
+	public static void clear() {
+		for (int i = 0; i < table.length; ++i) {
+			table[i].hash = 0;
+		}
+		for (int i = 0; i < cachedStaticInfo.length; ++i) {
+			cachedStaticInfo[i].hash = 0;
+		}
+	}
 
 	public static void toggleMoveMask() {
 		++currentToggleMask;
@@ -181,6 +190,7 @@ public class TransposTable {
 		cached.bestNrAssignedGhosts = eval.ghostAssignment.bestNrAssignedGhosts;
 		cached.nrInvolvedGhosts = eval.nrInvolvedGhosts;
 		cached.pacmanHealth = eval.pacmanHealth;
+		cached.pacmanLocation = Search.b.pacmanLocation;
 		if(Search.log)Search.log("storeStatic " + cached);
 	}
 	
@@ -191,7 +201,7 @@ public class TransposTable {
 			p.hash = hash;
 			int index = (int) (hash & (NR_ENTRIES - 1));
 			CachedStaticInfo cached = cachedStaticInfo[index];
-			if (cached.hash == hash) {
+			if (cached.hash == hash && cached.pacmanLocation == Search.b.pacmanLocation) {
 				if(Search.log)Search.log("Retrieved static, " + cached);
 				Search.StaticEvaluator2 eval = Search.staticEval2;
 				eval.nrBorders = cached.nrBorders;
@@ -229,6 +239,7 @@ public class TransposTable {
 	
 	static class CachedStaticInfo {
 		long hash;
+		int pacmanLocation;
 		int nrBorders;
 		int nrPacmanNodes;
 		boolean hasCircles;

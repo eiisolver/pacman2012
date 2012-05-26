@@ -35,6 +35,7 @@ public class GhostTrap {
 			// walk to closest trap
 			PathToPill bestPath = null;
 			int shortestDist = 1000;
+			int distToClosestGhost = 0;
 			for (PathToPill path : traps) {
 				if (b.containsPowerPill[path.powerPill.index]) {
 					int dist = game.getShortestPathDistance(b.pacmanLocation, path.powerPill.index);
@@ -45,6 +46,7 @@ public class GhostTrap {
 								System.out.println("Better dist");
 								shortestDist = dist;
 								bestPath = path;
+								distToClosestGhost = gDist - dist;
 							}
 					}
 				}
@@ -56,13 +58,15 @@ public class GhostTrap {
 				lastPath = bestPath;
 				shortestDist = 1000;
 				Node pacmanNode = b.graph.nodes[b.pacmanLocation];
-				MOVE bestMove = null;
-				for (int j = 0; j < pacmanNode.nrNeighbours; ++j) {
-					int newDist = game.getShortestPathDistance(pacmanNode.neighbours[j], bestPath.powerPill.index);
-					if (newDist < shortestDist) {
-						bestMove = pacmanNode.neighbourMoves[j];
-						shortestDist = newDist;
-						System.out.println("Best move: " + bestMove + ", dist: " + shortestDist);
+				MOVE bestMove = MOVE.NEUTRAL; // wait until nearest ghost gets very close
+				if (distToClosestGhost <= 4) {
+					for (int j = 0; j < pacmanNode.nrNeighbours; ++j) {
+						int newDist = game.getShortestPathDistance(pacmanNode.neighbours[j], bestPath.powerPill.index);
+						if (newDist < shortestDist) {
+							bestMove = pacmanNode.neighbourMoves[j];
+							shortestDist = newDist;
+							System.out.println("Best move: " + bestMove + ", dist: " + shortestDist);
+						}
 					}
 				}
 				return bestMove;
@@ -71,7 +75,7 @@ public class GhostTrap {
 		lastPath = null;
 		return null;
 	}
-	public static MOVE rigTrapOld(Game game, Board b) {
+	/*public static MOVE rigTrapOld(Game game, Board b) {
 		int ghostDist = Search.distToFarthestGhostInTrain();
 		if (ghostDist >= 0 && ghostDist < 40) {
 			System.out.println("In ghost train!");
@@ -82,6 +86,7 @@ public class GhostTrap {
 			// walk to closest trap
 			PathToPill bestPath = null;
 			int shortestDist = 1000;
+			int distToClosestGhost = 0;
 			for (PathToPill path : traps) {
 				if (b.containsPowerPill[path.powerPill.index]) {
 					int dist = game.getShortestPathDistance(b.pacmanLocation, path.path[0].index);
@@ -96,6 +101,7 @@ public class GhostTrap {
 								System.out.println("Better dist");
 								shortestDist = dist;
 								bestPath = path;
+								distToClosestGhost = gDist - dist;
 							}
 						}
 					}
@@ -106,12 +112,16 @@ public class GhostTrap {
 				System.out.println("Set up trap towards " + lastPath.powerPill);
 				Log.println("Set up trap towards " + lastPath.powerPill);
 				lastPath = bestPath;
-				return lastPath.getMove(game, b);
+				MOVE bestMove = MOVE.NEUTRAL;
+				if (distToClosestGhost <= 3) {
+					bestMove = lastPath.getMove(game, b);
+				}
+				return bestMove;
 			}
 		}
 		lastPath = null;
 		return null;
-	}
+	}*/
 	private static void constructLevel0(Game game, Board b) {
 		PathToPill p1 = constructPath(game, b, 8, 4, new int[] {16, 12}, 16, 11, MOVE.LEFT);
 		PathToPill p2 = constructPath(game, b, 8, 104, new int[] {16, 96 }, 16, 97, MOVE.RIGHT);

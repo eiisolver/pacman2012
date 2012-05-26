@@ -39,6 +39,17 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
 	{
+		try {
+			return getMove2(game, timeDue);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Log.println(""+ex);
+			TransposTable.clear();
+			return myMoves;
+		}
+	}
+	public EnumMap<GHOST, MOVE> getMove2(Game game, long timeDue)
+	{
 		this.game = game;
 		Search.searchIterationFinished = new Runnable() {
 

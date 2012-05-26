@@ -26,7 +26,7 @@ public class Heuristics {
 	}
 	
 	public int getPillScore(int location) {
-		return Constants.PILL*POINT_FACTOR;
+		return (Constants.PILL*POINT_FACTOR)/6;
 	}
 	
 	public int getPowerPillScore() {
@@ -95,7 +95,7 @@ public class Heuristics {
 		boolean existNonKilling = existNonKillingGhosts();
 		int weakScore = 0;
 		if (isWeakOpponent()) {
-			if (game.getCurrentLevel() < 8) {
+			if (game.getCurrentLevel() < 8 || game.getCurrentLevelTime() < 1000) {
 				weakScore = -3*Constants.GHOST_EAT_SCORE*POINT_FACTOR;
 			} else {
 				weakScore = -((19 - game.getCurrentLevel())*Constants.GHOST_EAT_SCORE*POINT_FACTOR)/4;

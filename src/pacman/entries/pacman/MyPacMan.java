@@ -20,7 +20,7 @@ public class MyPacMan extends Controller<MOVE>
 	JunctionGraph jgraph = new JunctionGraph();
 	Board board = new Board();
 	int lastMazeIndex = -1;
-	private MOVE myMove=MOVE.NEUTRAL;
+	private MOVE myMove = MOVE.NEUTRAL;
 	public static final boolean log = Search.log;
 	private int nodeToClosestPill;
 	private MOVE nextMoveInTrap;
@@ -37,6 +37,20 @@ public class MyPacMan extends Controller<MOVE>
 	}
 	
 	public MOVE getMove(Game game, long timeDue) 
+	{
+		try {
+			return getMove2(game, timeDue);
+		} catch (Exception ex) {
+			// a bug; return something, otherwise pacman will not move
+			// for the rest of the game
+			ex.printStackTrace();
+			Log.println("" + ex);
+			TransposTable.clear();
+			return myMove;
+		}
+	}
+	
+	public MOVE getMove2(Game game, long timeDue) 
 	{
 		//Place your game logic here to play the game as the ghosts
 		// update junction graph when necessary
@@ -75,12 +89,15 @@ public class MyPacMan extends Controller<MOVE>
 		nextMoveInTrap = GhostTrap.rigTrap(game, board);
 		if (nextMoveInTrap != null) {
 			System.out.println("Set up trap; move to " + nextMoveInTrap);
+			Log.println("Set up trap; move to " + nextMoveInTrap);
 			Search.heuristics.updateForNewMove(game, board);
-			if (Search.heuristics.isWeakOpponent()) {
+			//if (Search.heuristics.isWeakOpponent()) {
 				System.out.println("Move: " + game.getCurrentLevelTime() 
-						+ " L" + game.getCurrentLevel());
+						+ " L" + game.getCurrentLevel() + ", move to " + nextMoveInTrap);
+				Log.println("Move: " + game.getCurrentLevelTime() 
+						+ " L" + game.getCurrentLevel() + ", move to " + nextMoveInTrap);
 				return nextMoveInTrap;
-			}
+			//}
 		}
 		//System.out.println("closest pill calc: " + (System.currentTimeMillis() - startTime));
 		Search.searchIterationFinished = new Runnable() {
@@ -129,10 +146,9 @@ public class MyPacMan extends Controller<MOVE>
 			}
 			GameView.addPoints(game,Color.GREEN, nodeList);
 		}
-		/*if (myMove != lastMove) {
-			System.err.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
+		if (myMove != lastMove) {
 			System.out.println("lastMove != myMove, myMove = " + myMove + ", lastMove = " + lastMove);
-		}*/
+		}
 		return myMove;
 	}
 	
