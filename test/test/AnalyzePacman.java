@@ -7,11 +7,11 @@ import pacman.game.Game;
 import pacman.game.Constants.MOVE;
 
 public class AnalyzePacman {
-	private static final int gameNr = DownloadAndView.gameNr;
-	private static int fromMoveNr = 0;
-	private static int toMoveNr = 3200;
+	private static final int gameNr = -1;//DownloadAndView.gameNr;
+	private static int fromMoveNr = 2140;
+	private static int toMoveNr = 2180;
 	private static int fromLevel = 0;
-	private static int toLevel = 1;
+	private static int toLevel = 0;
 	private static int thinkTime = 40;
 
 	public static void main(String[] args) throws Exception {

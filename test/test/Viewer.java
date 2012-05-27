@@ -65,8 +65,12 @@ public class Viewer {
 				if (c == ' ') {
 					paused = !paused;
 				} else if (c == '<') {
-					setMoveNr(currMove - 100);
+					setMoveNr(currMove - 1000);
 				} else if (c == '>') {
+					setMoveNr(currMove + 1000);
+				} else if (c == '-') {
+					setMoveNr(currMove - 100);
+				} else if (c == '+') {
 					setMoveNr(currMove + 100);
 				} else if (c == 'l') {
 					char currLevel = getLevel(currMove);

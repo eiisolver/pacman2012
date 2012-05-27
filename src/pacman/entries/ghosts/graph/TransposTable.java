@@ -31,6 +31,11 @@ public class TransposTable {
 	 * entries
 	 */
 	private static int currentToggleMask = 0;
+	/**
+	 * Every hash entry contains a version number that must match currentVersion, otherwise
+	 * the entry is invalid.
+	 */
+	private static short currentVersion = 0;
 
 	static {
 		for (int i = 0; i < table.length; ++i) {
@@ -42,12 +47,14 @@ public class TransposTable {
 	}
 	
 	public static void clear() {
-		for (int i = 0; i < table.length; ++i) {
+		// invalidate all hash entries by increasing the version number
+		++currentVersion;
+		/*for (int i = 0; i < table.length; ++i) {
 			table[i].hash = 0;
 		}
 		for (int i = 0; i < cachedStaticInfo.length; ++i) {
 			cachedStaticInfo[i].hash = 0;
-		}
+		}*/
 	}
 
 	public static void toggleMoveMask() {
@@ -68,12 +75,12 @@ public class TransposTable {
 		if (t.hash == hash) {
 			// current position was already present: do not update if p.budget
 			// lower
-			if (t.budget >= p.budget) {
+			if (t.budget >= p.budget && t.version == currentVersion) {
 				return;
 			}
 		} else {
 			int existingToggle = t.flags >> 4;
-			if (currentToggleMask == existingToggle) {
+			if (currentToggleMask == existingToggle && t.version == currentVersion) {
 				// existing entry is of same ply; replace if budget is higher
 				if (t.budget >= p.budget) {
 					return;
@@ -114,6 +121,7 @@ public class TransposTable {
 		}
 		t.flags += currentToggleMask << 4;
 		t.pacmanLocation = (short) b.pacmanLocation;
+		t.version = currentVersion;
 		if (Search.log)Search.log("store trans " + t.hash + ", value " + t.value);
 	}
 
@@ -132,7 +140,7 @@ public class TransposTable {
 		p.transpos = null;
 		int index = (int) (hash & (NR_ENTRIES - 1));
 		TransposInfo t = table[index];
-		if (t.hash == hash) {
+		if (t.hash == hash && t.version == currentVersion) {
 			// hash matches, but double-check the result
 			if (t.pacmanLocation != b.pacmanLocation
 					|| movePacman != ((t.flags & MOVE_PACMAN) != 0)) {
@@ -191,6 +199,7 @@ public class TransposTable {
 		cached.nrInvolvedGhosts = eval.nrInvolvedGhosts;
 		cached.pacmanHealth = eval.pacmanHealth;
 		cached.pacmanLocation = Search.b.pacmanLocation;
+		cached.version = currentVersion;
 		if(Search.log)Search.log("storeStatic " + cached);
 	}
 	
@@ -201,7 +210,7 @@ public class TransposTable {
 			p.hash = hash;
 			int index = (int) (hash & (NR_ENTRIES - 1));
 			CachedStaticInfo cached = cachedStaticInfo[index];
-			if (cached.hash == hash && cached.pacmanLocation == Search.b.pacmanLocation) {
+			if (cached.hash == hash && cached.pacmanLocation == Search.b.pacmanLocation && cached.version == currentVersion) {
 				if(Search.log)Search.log("Retrieved static, " + cached);
 				Search.StaticEvaluator2 eval = Search.staticEval2;
 				eval.nrBorders = cached.nrBorders;
@@ -235,6 +244,7 @@ public class TransposTable {
 		short budget;
 		/** pacman location (only used to verify consistency) */
 		short pacmanLocation;
+		short version;
 	}
 	
 	static class CachedStaticInfo {
@@ -250,6 +260,7 @@ public class TransposTable {
 		boolean ghostAssignCalled;
 		int nrInvolvedGhosts;
 		int pacmanHealth;
+		short version;
 		
 		@Override
 		public String toString() {

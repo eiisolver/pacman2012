@@ -20,6 +20,7 @@ public class MyPacMan extends Controller<MOVE>
 	JunctionGraph jgraph = new JunctionGraph();
 	Board board = new Board();
 	int lastMazeIndex = -1;
+	int lastScore = 0;
 	private MOVE myMove = MOVE.NEUTRAL;
 	public static final boolean log = Search.log;
 	private int nodeToClosestPill;
@@ -78,6 +79,10 @@ public class MyPacMan extends Controller<MOVE>
 			Search.update(board, jgraph, game);
 			GhostTrap.updateLevel(game, board);
 		}
+		if (lastScore != game.getScore()) {
+			TransposTable.clear();
+		}
+		lastScore = game.getScore();
 		lastMazeIndex = game.getMazeIndex();
 		long startTime = System.currentTimeMillis();
 		board.update(game);

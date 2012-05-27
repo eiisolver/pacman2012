@@ -638,11 +638,14 @@ public class Search {
 					if (closestDist < 300) {
 						value += 250 - 3*closestDist;
 					}
+					if (edibleBonus == 0) {
+						value -= farAwayBonus; // we want pacman to be close to all ghosts if they are weak
+					}
 				}
 			} else {
 				value += 4*graphBonus;
 				if (mustTakePowerPillToSurvive && heuristics.getPowerPillScore() < 0) {
-					value += heuristics.getPowerPillScore()/2 - 300 + (currDepth + distToClosestPowerPill());
+					value += heuristics.getPowerPillScore()/2 - 300 + 2*(currDepth + distToClosestPowerPill());
 				}
 				if (pacmanCanGetToPowerPill) {
 					value += 300;
