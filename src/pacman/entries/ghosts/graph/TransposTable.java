@@ -204,6 +204,7 @@ public class TransposTable {
 	}
 	
 	public static boolean retrieveStaticEval(PlyInfo p, boolean movePacman) {
+		/* To do: fix this, caching of static evaluations is broken...
 		long hash = p.hash;
 		if (hash == 0) {
 			hash = Search.b.getHash(movePacman);
@@ -226,7 +227,7 @@ public class TransposTable {
 				eval.resultFromCache = true;
 				return true;
 			}
-		}
+		}*/
 		return false;
 	}
 

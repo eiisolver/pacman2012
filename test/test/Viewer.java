@@ -5,6 +5,7 @@ import static pacman.game.Constants.DELAY;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -84,6 +85,9 @@ public class Viewer {
 					for (; currMove <timeSteps.size()-1 && getNrLives(currMove) == currNrLives; ++currMove) {
 					}
 					--currMove;
+				} else if (c == 's') {
+					GameView.saveImageAfterTurn(new File("board.png"));
+					gv.repaint();
 				} else if (c >= '0' && c <= '9') {
 					delay = 95 - (c-'0')*10;
 				} else {

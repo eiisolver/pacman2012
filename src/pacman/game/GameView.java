@@ -6,6 +6,7 @@ import pacman.game.Constants.GHOST;
 import pacman.game.Constants.MOVE;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.EnumMap;
@@ -34,7 +35,7 @@ public final class GameView extends JComponent
     private static boolean isVisible=true;
     public static Vector<DebugPointer> debugPointers=new Vector<DebugPointer>();
     public static Vector<DebugLine> debugLines=new Vector<DebugLine>();
-    
+    private static File fileForSave = null;
     /**
      * Instantiates a new game view.
      *
@@ -95,7 +96,15 @@ public final class GameView extends JComponent
     	if(isVisible)
     		debugLines.add(new DebugLine(game.getNodeXCood(fromNnodeIndex),game.getNodeYCood(fromNnodeIndex),game.getNodeXCood(toNodeIndex),game.getNodeYCood(toNodeIndex),color));    	
     }
-        
+    
+    /**
+     * Saves the image after updating the window. Clears the internal file information afterwards
+     * @param file
+     */
+    public static void saveImageAfterTurn(File file) {
+        GameView.fileForSave  = file;      
+    }
+    
     /**
      * Draw the debug info and the clear it - it is shown for a single time step only.
      */
@@ -149,6 +158,23 @@ public final class GameView extends JComponent
         	drawGameOver();
         
         g.drawImage(offscreen,0,0,this);
+     // Save to PNG?
+        if (fileForSave!=null) {
+            try {
+                ImageIO.write((RenderedImage) offscreen, "PNG", fileForSave);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            fileForSave = null;
+        }
+    }
+    
+    public void saveImage(File file) {
+        try {
+            ImageIO.write((RenderedImage) offscreen, "PNG", fileForSave);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     /**
