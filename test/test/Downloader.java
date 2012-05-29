@@ -1,3 +1,7 @@
+/**
+ * Almost all code in this class has been written by Kettling, 
+ * see http://forum.pacman-vs-ghosts.net/viewtopic.php?f=6&t=16
+ */
 package test;
 
 import java.io.*;
